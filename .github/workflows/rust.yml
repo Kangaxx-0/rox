@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        platform: [windows-latest, macos-latest, ubuntu-latest]
+        platform: [macos-latest, ubuntu-latest]
         rust:
           - stable
 
@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        platform: [windows-latest, macos-latest, ubuntu-latest]
+        platform: [macos-latest, ubuntu-latest]
         rust:
           - stable
 
