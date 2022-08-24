@@ -12,7 +12,14 @@ env:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        platform: [windows-latest, macos-latest, ubuntu-latest]
+        rust:
+          - stable
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
     - uses: actions/checkout@v3
@@ -20,3 +27,43 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+      
+  nu-fmt-clippy:
+    strategy:
+      fail-fast: true
+      matrix:
+        platform: [windows-latest, macos-latest, ubuntu-latest]
+        rust:
+          - stable
+
+    runs-on: ${{ matrix.platform }}
+    env:
+      NUSHELL_CARGO_TARGET: ci
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        # makes ci use rust-toolchain.toml
+        # with:
+        #   profile: minimal
+        #   toolchain: ${{ matrix.rust }}
+        #   override: true
+        #   components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v1
+        with:
+          key: "v2" # increment this to bust the cache if needed
+
+      - name: Rustfmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings -D clippy::unwrap_used -A clippy::needless_collect
