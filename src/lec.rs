@@ -102,7 +102,7 @@ impl<T> Lec<T> {
 impl<T> Drop for Lec<T> {
     fn drop(&mut self) {
         if self.cap != 0 {
-            while let Some(_) = self.pop() {}
+            while self.pop().is_some() {}
             let layout = Layout::array::<T>(self.cap).unwrap();
             unsafe {
                 dealloc(self.ptr.as_ptr() as *mut u8, layout);
