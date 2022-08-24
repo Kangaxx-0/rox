@@ -36,12 +36,12 @@ impl<T> Lec<T> {
 
     pub fn grow(&mut self) {
         let (new_cap, new_layout) = if self.cap == 0 {
-            (1, Layout::array::<T>(1).unwrap())
+            (1, Layout::array::<T>(1).expect("Unable to get layout"))
         } else {
             // this can't overflow since self.cap <= isize.Max.
             let new_cap = 2 * self.cap;
 
-            let new_layout = Layout::array::<T>(new_cap).unwrap();
+            let new_layout = Layout::array::<T>(new_cap).expect("Unable to get layout");
             (new_cap, new_layout)
         };
 
@@ -53,7 +53,7 @@ impl<T> Lec<T> {
         let new_ptr = if self.cap == 0 {
             unsafe { alloc(new_layout) }
         } else {
-            let old_layout = Layout::array::<T>(self.cap).unwrap();
+            let old_layout = Layout::array::<T>(self.cap).expect("Unable to get layout");
             let old_ptr = self.ptr.as_ptr() as *mut u8;
             unsafe { realloc(old_ptr, old_layout, new_layout.size()) }
         };
@@ -103,7 +103,7 @@ impl<T> Drop for Lec<T> {
     fn drop(&mut self) {
         if self.cap != 0 {
             while self.pop().is_some() {}
-            let layout = Layout::array::<T>(self.cap).unwrap();
+            let layout = Layout::array::<T>(self.cap).expect("Unable to get layout");
             unsafe {
                 dealloc(self.ptr.as_ptr() as *mut u8, layout);
             }
