@@ -1,5 +1,6 @@
 use std::alloc::{alloc, dealloc, handle_alloc_error, realloc, Layout};
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 use std::ptr::{self, NonNull};
 use std::{isize, mem};
 
@@ -108,6 +109,20 @@ impl<T> Drop for Lec<T> {
                 dealloc(self.ptr.as_ptr() as *mut u8, layout);
             }
         }
+    }
+}
+
+impl<T> Deref for Lec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+    }
+}
+
+impl<T> DerefMut for Lec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
     }
 }
 
