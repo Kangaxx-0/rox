@@ -70,6 +70,10 @@ impl<T> Lec<T> {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn capacity(&self) -> usize {
         self.cap
     }
@@ -109,6 +113,12 @@ impl<T> Drop for Lec<T> {
                 dealloc(self.ptr.as_ptr() as *mut u8, layout);
             }
         }
+    }
+}
+
+impl<T> Default for Lec<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
