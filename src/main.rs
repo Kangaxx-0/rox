@@ -1,15 +1,14 @@
-use rox::{chunk, op_code};
+use rox::{chunk::Chunk, op_code::OpCode, value::Value};
 
 fn main() {
-    let mut chunk = chunk::Chunk::new();
+    let mut chunk = Chunk::new();
+    let index = chunk.push_constant(Value::Number(1.2));
 
-    let code_return = op_code::OpCode::Return;
-    let call = op_code::OpCode::Call(20);
-    let constant = op_code::OpCode::Constant(1);
+    let code_return = OpCode::Return;
+    let constant = OpCode::Constant(index as u8);
 
-    chunk.push_instruction(constant);
-    chunk.push_instruction(code_return);
-    chunk.push_instruction(call);
+    chunk.write_to_chunk(constant, Value::Number(1.2), 1);
+    chunk.write_to_chunk(code_return, Value::Number(1.2), 2);
     println!("chunk contains {}", chunk.len());
     chunk.disassemble_chunk("test");
 }
