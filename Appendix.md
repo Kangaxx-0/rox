@@ -39,3 +39,28 @@ cp_info {
 |CONSTANT_InvokeDynamic|   18  |
 |CONSTANT_Module    |   19  |
 |CONSTANT_Package    |   20  |
+
+## 操作码和Rust枚举
+> ## Operation code and Rust Enum
+如原书中 [常量](https://github.com/munificent/craftinginterpreters/blob/master/book/chunks-of-bytecode.md#constants) 章节所解释, 我们不打算直接在操作码中存储对应的常量
+> As the book [Constant](https://github.com/munificent/craftinginterpreters/blob/master/book/chunks-of-bytecode.md#constants) section explains, we do not plan to save constant diectly with operation code
+
+<aside name="header">
+<img src="https://github.com/Kangaxx-0/rox/blob/main/assets/ConstantPool.png" alt="code and constant index" />
+</aside>
+
+所以想达成和clox一样的结果，Rustacean可能倾向类似下面的方案
+> So achive the same result as clox,  Rustacean might like an approach like
+
+```
+enum OpCode {
+    Constant(u8),
+}
+```
+如果索引值很大，我们可以用`usize`
+> We can change `u8` to `usize` if the index goes large
+
+
+
+
+
