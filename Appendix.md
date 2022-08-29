@@ -54,7 +54,7 @@ cp_info {
 
 ```
 enum OpCode {
-    Constant(u8),
+    Constant(u8), // Save the index
 }
 ```
 如果索引值很大，我们可以用`usize`
