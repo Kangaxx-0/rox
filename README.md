@@ -1,6 +1,5 @@
 # rox
-An RUST implementation of clox
-
+An RUST implementation of clox from Robert Nystrom's book "Crafting Interperters", if you would like to catch the details faster, you might want to read the previous sections about [AST section](https://craftinginterpreters.com/a-tree-walk-interpreter.html), or taking the blow reading list
 
 # Recommendation reading list:
 > 阅读推荐，更好的理解细节:
