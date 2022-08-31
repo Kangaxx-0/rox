@@ -55,7 +55,7 @@ impl Chunk {
     }
 
     #[allow(unreachable_patterns)]
-    fn disassemble_instruction(&self, offset: usize) {
+    pub fn disassemble_instruction(&self, offset: usize) {
         println!("offset -> {}", offset);
         let instruction = &self.code[offset];
         let line = &self.lines[offset];
