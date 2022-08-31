@@ -17,10 +17,9 @@ impl Chunk {
         }
     }
 
-    pub fn write_to_chunk(&mut self, value: OpCode, constant: Value, line: u8) {
+    pub fn write_to_chunk(&mut self, value: OpCode, line: u8) {
         self.push_instruction(value);
         self.push_line(line);
-        self.constants.push(constant);
     }
 
     pub fn push_constant(&mut self, constant: Value) -> usize {
