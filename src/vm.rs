@@ -34,7 +34,7 @@ impl Vm {
                 break;
             }
             let chunk = &self.chunk;
-            self.chunk.disassemble_chunk("test");
+            self.chunk.disassemble_instruction(self.ip);
             match &chunk.code[self.ip] {
                 OpCode::Return => {
                     println!("Executing return statement!");
