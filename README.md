@@ -16,4 +16,5 @@ How bytecode VM interpreter works:
 # References:
 > 引用:
 - [Java Constant Pool](https://docs.oracle.com/javase/specs/jvms/se18/html/jvms-4.html)
+- [BSD Exit Code](https://github.com/openbsd/src/blob/master/include/sysexits.h)
 
