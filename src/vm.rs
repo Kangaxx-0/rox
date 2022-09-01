@@ -131,7 +131,7 @@ impl Vm {
                 } else {
                     self.push(v1);
                     self.push(v2);
-                    return Err(InterpretError::RuntimeError);
+                    Err(InterpretError::RuntimeError)
                 }
             }
             OpCode::Subtract => {
@@ -142,7 +142,7 @@ impl Vm {
                 } else {
                     self.push(v1);
                     self.push(v2);
-                    return Err(InterpretError::RuntimeError);
+                    Err(InterpretError::RuntimeError)
                 }
             }
             OpCode::Multiply => {
@@ -153,7 +153,7 @@ impl Vm {
                 } else {
                     self.push(v1);
                     self.push(v2);
-                    return Err(InterpretError::RuntimeError);
+                    Err(InterpretError::RuntimeError)
                 }
             }
             OpCode::Divide => {
@@ -164,7 +164,7 @@ impl Vm {
                 } else {
                     self.push(v1);
                     self.push(v2);
-                    return Err(InterpretError::RuntimeError);
+                    Err(InterpretError::RuntimeError)
                 }
             }
             _ => Err(InterpretError::RuntimeError),
