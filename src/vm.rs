@@ -71,17 +71,40 @@ impl Vm {
             self.chunk.disassemble_instruction(self.ip);
             match &chunk.code[self.ip] {
                 OpCode::Return => {
-                    let v = self.pop();
-                    println!("Returning value of {:?}", v);
+                    let val = self.pop();
+                    println!("Returning value of {:?}", val);
                     result = Ok(())
                 }
                 OpCode::Constant(v) => {
-                    let v = self.chunk.constants[*v as usize];
-                    println!("Executing value {:?}", v);
+                    let val = self.chunk.constants[*v as usize];
+                    println!("Executing value {:?}", val);
 
-                    self.push(v);
+                    self.push(val);
                     result = Ok(());
                 }
+                OpCode::Negative => {
+                    if let Value::Number(v) = self.pop() {
+                        self.push(Value::Number(-v));
+                    }
+
+                    result = Ok(());
+                }
+                OpCode::Add => match self.binary_operation(OpCode::Add) {
+                    Ok(number) => println!("binary add gets {}", number),
+                    Err(e) => return Err(e),
+                },
+                OpCode::Subtract => match self.binary_operation(OpCode::Subtract) {
+                    Ok(number) => println!("binary subtract gets {}", number),
+                    Err(e) => return Err(e),
+                },
+                OpCode::Multiply => match self.binary_operation(OpCode::Multiply) {
+                    Ok(number) => println!("binary multiply gets {}", number),
+                    Err(e) => return Err(e),
+                },
+                OpCode::Divide => match self.binary_operation(OpCode::Divide) {
+                    Ok(number) => println!("binary divide gets {}", number),
+                    Err(e) => return Err(e),
+                },
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     result = Err(InterpretError::RuntimeError);
@@ -94,6 +117,58 @@ impl Vm {
         }
 
         result
+    }
+
+    fn binary_operation(&mut self, code: OpCode) -> Result<f64, InterpretError> {
+        let (v1, v2) = (self.pop(), self.pop());
+        match code {
+            //FIXME - Refactor and simplify the code later
+            OpCode::Add => {
+                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                    let result = x2 + x1;
+                    self.push(Value::Number(result));
+                    Ok(result)
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    return Err(InterpretError::RuntimeError);
+                }
+            }
+            OpCode::Subtract => {
+                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                    let result = x2 - x1;
+                    self.push(Value::Number(result));
+                    Ok(result)
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    return Err(InterpretError::RuntimeError);
+                }
+            }
+            OpCode::Multiply => {
+                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                    let result = x2 * x1;
+                    self.push(Value::Number(result));
+                    Ok(result)
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    return Err(InterpretError::RuntimeError);
+                }
+            }
+            OpCode::Divide => {
+                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                    let result = x2 / x1;
+                    self.push(Value::Number(result));
+                    Ok(result)
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    return Err(InterpretError::RuntimeError);
+                }
+            }
+            _ => Err(InterpretError::RuntimeError),
+        }
     }
 
     fn print_stack(&self) {

@@ -59,9 +59,14 @@ impl Chunk {
         let instruction = &self.code[offset];
         let line = &self.lines[offset];
         match instruction {
-            OpCode::Call(v) => self.constant_instruction("OP_CALL", Some(v), offset, *line),
-            OpCode::Constant(v) => self.constant_instruction("OP_CONSTANT", Some(v), offset, *line),
-            OpCode::Return => self.constant_instruction("OP_RETURN", None, offset, *line),
+            OpCode::Call(v) => self.constant_instruction("Call", Some(v), offset, *line),
+            OpCode::Constant(v) => self.constant_instruction("Constant", Some(v), offset, *line),
+            OpCode::Negative => self.constant_instruction("Negative", None, offset, *line),
+            OpCode::Return => self.constant_instruction("Return", None, offset, *line),
+            OpCode::Add => self.constant_instruction("Add", None, offset, *line),
+            OpCode::Subtract => self.constant_instruction("Subtract", None, offset, *line),
+            OpCode::Multiply => self.constant_instruction("Multiply", None, offset, *line),
+            OpCode::Divide => self.constant_instruction("Divide", None, offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
