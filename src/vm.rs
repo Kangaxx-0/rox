@@ -185,3 +185,82 @@ impl Default for Vm {
         Self::new()
     }
 }
+
+// unit test
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_push_pop() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.push(Value::Number(1.0));
+        vm.push(Value::Number(2.0));
+        vm.push(Value::Number(3.0));
+
+        assert_eq!(vm.pop(), Value::Number(3.0));
+        assert_eq!(vm.pop(), Value::Number(2.0));
+        assert_eq!(vm.pop(), Value::Number(1.0));
+    }
+
+    #[test]
+    fn test_negative() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.push(Value::Number(1.0));
+        vm.push(Value::Number(2.0));
+        vm.push(Value::Number(3.0));
+
+        assert_eq!(vm.pop(), Value::Number(3.0));
+        assert_eq!(vm.pop(), Value::Number(2.0));
+        assert_eq!(vm.pop(), Value::Number(1.0));
+    }
+
+    #[test]
+    fn test_add() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.push(Value::Number(1.0));
+        vm.push(Value::Number(2.0));
+        vm.push(Value::Number(3.0));
+
+        vm.binary_operation(OpCode::Add).unwrap();
+        assert_eq!(vm.pop(), Value::Number(5.0));
+    }
+
+    #[test]
+    fn test_subtract() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.push(Value::Number(1.0));
+        vm.push(Value::Number(2.0));
+        vm.push(Value::Number(3.0));
+
+        vm.binary_operation(OpCode::Subtract).unwrap();
+        assert_eq!(vm.pop(), Value::Number(-1.0));
+    }
+
+    #[test]
+    fn test_multiply() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.push(Value::Number(1.0));
+        vm.push(Value::Number(2.0));
+        vm.push(Value::Number(3.0));
+
+        vm.binary_operation(OpCode::Multiply).unwrap();
+        assert_eq!(vm.pop(), Value::Number(6.0));
+    }
+
+    #[test]
+    fn test_divide() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.push(Value::Number(2.0));
+        vm.push(Value::Number(3.0));
+
+        vm.binary_operation(OpCode::Divide).unwrap();
+        assert_eq!(vm.pop(), Value::Number(0.6666666666666666));
+    }
+}
