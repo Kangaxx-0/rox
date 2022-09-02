@@ -8,6 +8,7 @@ repository = "https://github.com/Kangaxx-0/rox"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 tempfile = "3.3.0"
