@@ -205,19 +205,6 @@ mod tests {
     }
 
     #[test]
-    fn test_negative() {
-        let mut vm = Vm::new();
-        vm.initialize();
-        vm.push(Value::Number(1.0));
-        vm.push(Value::Number(2.0));
-        vm.push(Value::Number(3.0));
-
-        assert_eq!(vm.pop(), Value::Number(3.0));
-        assert_eq!(vm.pop(), Value::Number(2.0));
-        assert_eq!(vm.pop(), Value::Number(1.0));
-    }
-
-    #[test]
     fn test_add() {
         let mut vm = Vm::new();
         vm.initialize();
