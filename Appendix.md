@@ -64,3 +64,7 @@ enum OpCode {
 
 
 
+# Chapter of Chunks of Bytecodes
+
+##  `ParseRule` and `ParseFn`
+I perfer to use funtion pointer `fn` instread of `FnMut` trait because we don't really need to capture context environment.
