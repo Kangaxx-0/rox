@@ -3,8 +3,8 @@ use std::fmt::Display;
 // operation code.
 #[derive(Debug, Clone, Copy)]
 pub enum OpCode {
-    Call(u8),
-    Constant(u8),
+    Call(usize),
+    Constant(usize),
     Negative,
     Add,
     Subtract,

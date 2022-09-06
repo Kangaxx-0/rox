@@ -5,7 +5,7 @@ use crate::value::Value;
 pub struct Chunk {
     pub code: Lec<OpCode>,
     pub constants: Lec<Value>,
-    pub lines: Lec<u8>,
+    pub lines: Lec<usize>,
 }
 
 impl Chunk {
@@ -17,7 +17,7 @@ impl Chunk {
         }
     }
 
-    pub fn write_to_chunk(&mut self, value: OpCode, line: u8) {
+    pub fn write_to_chunk(&mut self, value: OpCode, line: usize) {
         self.push_instruction(value);
         self.push_line(line);
     }
@@ -41,7 +41,7 @@ impl Chunk {
     }
 
     //TODO - Refactor this
-    pub fn push_line(&mut self, line: u8) {
+    pub fn push_line(&mut self, line: usize) {
         self.lines.push(line);
     }
     // FIXME - Chunk should have a name then we can disassemble?
@@ -72,10 +72,10 @@ impl Chunk {
     }
 
     // FIXME - complete this function
-    fn constant_instruction(&self, msg: &str, value: Option<&u8>, offset: usize, line: u8) {
+    fn constant_instruction(&self, msg: &str, value: Option<&usize>, offset: usize, line: usize) {
         match value {
             Some(v) => {
-                let constant = &self.constants[*v as usize];
+                let constant = &self.constants[*v];
 
                 println!(
                     "OP CODE:{} - Line number {} - Constant pool index:{} and the value:{:?}",

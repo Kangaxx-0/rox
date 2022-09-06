@@ -1,6 +1,6 @@
 use std::ptr;
 
-use crate::{chunk::Chunk, compiler::compile, op_code::OpCode, value::Value};
+use crate::{chunk::Chunk, compiler::Parser, op_code::OpCode, value::Value};
 
 const STACK_MAX: usize = 20;
 
@@ -32,10 +32,11 @@ impl Vm {
         self.stack_top = self.stack.as_mut_ptr();
     }
 
-    pub fn interpret(&mut self, bytes: Vec<u8>) -> Result<(), InterpretError> {
-        compile(bytes);
-
-        // self.chunk = bytes;
+    pub fn interpret(&mut self, bytes: &[u8]) -> Result<(), InterpretError> {
+        let mut parser = Parser::new(bytes, &mut self.chunk);
+        if !parser.compile() {
+            return Err(InterpretError::CompileError);
+        }
 
         self.run()
     }

@@ -4,5 +4,6 @@ pub mod lec;
 pub mod op_code;
 pub mod scanner;
 pub mod token;
+pub mod utils;
 pub mod value;
 pub mod vm;
