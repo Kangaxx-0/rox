@@ -27,7 +27,7 @@ lazy_static! {
 }
 
 pub struct Scanner<'bytes> {
-    bytes: &'bytes [u8],
+    pub bytes: &'bytes [u8],
     start: usize,
     current: usize,
     line: usize,
@@ -131,7 +131,7 @@ impl<'bytes> Scanner<'bytes> {
         }
     }
     fn is_end(&self) -> bool {
-        self.peek() != b'\0'
+        self.bytes.len() == self.current
     }
 
     fn skip_whitespace(&mut self) {
