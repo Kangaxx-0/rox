@@ -197,8 +197,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                     start,
                     end,
                 ));
-            }
-            else {
+            } else {
                 break;
             }
         }
