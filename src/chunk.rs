@@ -35,12 +35,10 @@ impl Chunk {
         self.code.len() == 0
     }
 
-    //TODO - Refactor this with push line.
     pub fn push_instruction(&mut self, value: OpCode) {
         self.code.push(value);
     }
 
-    //TODO - Refactor this
     pub fn push_line(&mut self, line: usize) {
         self.lines.push(line);
     }
@@ -91,5 +89,101 @@ impl Chunk {
 impl Default for Chunk {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_chunk() {
+        let chunk = Chunk::new();
+        assert_eq!(chunk.code.len(), 0);
+        assert_eq!(chunk.constants.len(), 0);
+        assert_eq!(chunk.lines.len(), 0);
+    }
+
+    #[test]
+    fn test_write_to_chunk() {
+        let mut chunk = Chunk::new();
+        chunk.write_to_chunk(OpCode::Constant(1), 1);
+        assert_eq!(chunk.code.len(), 1);
+        assert_eq!(chunk.constants.len(), 0);
+        assert_eq!(chunk.lines.len(), 1);
+    }
+
+    #[test]
+    fn test_push_constant() {
+        let mut chunk = Chunk::new();
+        let constant = Value::Number(1.0);
+        let index = chunk.push_constant(constant);
+        assert_eq!(chunk.constants.len(), 1);
+        assert_eq!(index, 0);
+    }
+
+    #[test]
+    fn test_len() {
+        let mut chunk = Chunk::new();
+        chunk.write_to_chunk(OpCode::Constant(1), 1);
+        assert_eq!(chunk.len(), 1);
+    }
+
+    #[test]
+    fn test_is_empty() {
+        let mut chunk = Chunk::new();
+        assert_eq!(chunk.is_empty(), true);
+        chunk.write_to_chunk(OpCode::Constant(1), 1);
+        assert_eq!(chunk.is_empty(), false);
+    }
+
+    #[test]
+    fn test_push_instruction() {
+        let mut chunk = Chunk::new();
+        chunk.push_instruction(OpCode::Constant(1));
+        assert_eq!(chunk.code.len(), 1);
+    }
+
+    #[test]
+    fn test_push_line() {
+        let mut chunk = Chunk::new();
+        chunk.push_line(1);
+        assert_eq!(chunk.lines.len(), 1);
+    }
+
+    #[test]
+    fn test_disassemble_chunk() {
+        let mut chunk = Chunk::new();
+        let constant = Value::Number(1.0);
+        let index = chunk.push_constant(constant);
+        chunk.write_to_chunk(OpCode::Constant(index), 1);
+        chunk.disassemble_chunk("test");
+    }
+
+    #[test]
+    fn test_disassemble_instruction() {
+        let mut chunk = Chunk::new();
+        let constant = Value::Number(1.0);
+        let index = chunk.push_constant(constant);
+        chunk.write_to_chunk(OpCode::Constant(index), 1);
+        chunk.disassemble_instruction(0);
+    }
+
+    #[test]
+    fn test_constant_instruction() {
+        let mut chunk = Chunk::new();
+        let constant = Value::Number(1.0);
+        let index = chunk.push_constant(constant);
+        chunk.write_to_chunk(OpCode::Constant(index), 1);
+        chunk.constant_instruction("Constant", Some(&index), 0, 1);
+        assert_eq!(1, chunk.len());
+    }
+
+    #[test]
+    fn test_return_instruction() {
+        let mut chunk = Chunk::new();
+        let code_return = OpCode::Return;
+        chunk.push_instruction(code_return);
+        assert_eq!(1, chunk.len());
     }
 }
