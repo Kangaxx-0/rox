@@ -98,6 +98,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn consume(&mut self, expected_type: TokenType, msg: &str) {
         if self.current.t_type == expected_type {
             self.next_valid_token();
+            return;
         }
 
         self.error_at_curent(msg);
@@ -276,6 +277,6 @@ impl<'a, 'b> Parser<'a, 'b> {
 
         self.consume(TokenType::Eof, "Expect end of expression.");
         self.end_compiler();
-        self.had_error
+        !self.had_error
     }
 }
