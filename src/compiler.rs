@@ -127,8 +127,6 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn compile_unary(&mut self) {
         let operator_type = self.previous.t_type;
 
-        self.expression();
-
         self.parse_precedence(Precedence::Unary);
 
         if let TokenType::Minus = operator_type {
