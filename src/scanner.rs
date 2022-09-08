@@ -229,3 +229,83 @@ fn is_digit(c: u8) -> bool {
 fn is_alphabet(c: u8) -> bool {
     c.is_ascii_alphabetic() || c == b'_'
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_next() {
+        let mut scanner = Scanner::new("abc".as_bytes());
+        assert_eq!(b'a', scanner.next());
+        assert_eq!(b'b', scanner.next());
+        assert_eq!(b'c', scanner.next());
+    }
+
+    #[test]
+    fn test_peek() {
+        let mut scanner = Scanner::new("abc".as_bytes());
+        assert_eq!(b'a', scanner.peek());
+        assert_eq!(b'a', scanner.peek());
+        scanner.next();
+        assert_eq!(b'b', scanner.peek());
+        assert_eq!(b'b', scanner.peek());
+    }
+
+    #[test]
+    fn test_peek_next() {
+        let mut scanner = Scanner::new("abc".as_bytes());
+        assert_eq!(b'b', scanner.peek_next());
+        assert_eq!(b'b', scanner.peek_next());
+        scanner.next();
+        assert_eq!(b'c', scanner.peek_next());
+        assert_eq!(b'c', scanner.peek_next());
+    }
+
+    #[test]
+    fn test_match_type() {
+        let mut scanner = Scanner::new("abc".as_bytes());
+        assert_eq!(true, scanner.match_type(b'a'));
+        assert_eq!(true, scanner.match_type(b'b'));
+        assert_eq!(true, scanner.match_type(b'c'));
+        assert_eq!(false, scanner.match_type(b'a'));
+    }
+
+    #[test]
+    fn test_is_end() {
+        let mut scanner = Scanner::new("abc".as_bytes());
+        assert_eq!(false, scanner.is_end());
+        scanner.next();
+        scanner.next();
+        scanner.next();
+        assert_eq!(true, scanner.is_end());
+    }
+
+    #[test]
+    fn test_skip_whitespace() {
+        let mut scanner = Scanner::new("a   c".as_bytes());
+        assert_eq!(false, scanner.is_end());
+        scanner.next();
+        scanner.skip_whitespace();
+        scanner.next();
+        assert_eq!(true, scanner.is_end());
+    }
+
+    #[test]
+    fn test_number() {
+        let mut scanner = Scanner::new("123".as_bytes());
+        assert_eq!(TokenType::Number, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_identifier() {
+        let mut scanner = Scanner::new("var".as_bytes());
+        assert_eq!(TokenType::Var, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_string() {
+        let mut scanner = Scanner::new("\"abc\"".as_bytes());
+        assert_eq!(TokenType::Strings, scanner.scan_token().t_type);
+    }
+}
