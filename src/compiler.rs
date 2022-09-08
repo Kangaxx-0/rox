@@ -7,7 +7,7 @@ use crate::value::Value;
 
 //FIXME - remove dead_code
 #[allow(dead_code)]
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Precedence {
     No,
     Assignemnt,
@@ -47,22 +47,6 @@ struct ParseRule<'a, 'b> {
     infix: Option<ParseFn<'a, 'b>>,
     precedence: Precedence,
 }
-
-// impl<'a, 'b> ParseRule<'a, 'b> {
-//     fn new() -> Self {
-//         Self {
-//             prefix: None,
-//             infix: None,
-//             precedence: Precedence::No,
-//         }
-//     }
-// }
-//
-// impl<'a, 'b> Default for ParseRule<'a, 'b> {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }
 
 pub struct Parser<'a, 'b> {
     scanner: Scanner<'a>,
@@ -143,8 +127,6 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn compile_unary(&mut self) {
         let operator_type = self.previous.t_type;
 
-        self.expression();
-
         self.parse_precedence(Precedence::Unary);
 
         if let TokenType::Minus = operator_type {
@@ -159,7 +141,10 @@ impl<'a, 'b> Parser<'a, 'b> {
 
         match operator_type {
             TokenType::Plus => self.emit_byte(OpCode::Add),
-            _ => unreachable!(),
+            TokenType::Minus => self.emit_byte(OpCode::Subtract),
+            TokenType::Star => self.emit_byte(OpCode::Multiply),
+            TokenType::Slash => self.emit_byte(OpCode::Divide),
+            _ => unreachable!("{:?}", operator_type),
         }
     }
 
@@ -278,5 +263,94 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.consume(TokenType::Eof, "Expect end of expression.");
         self.end_compiler();
         !self.had_error
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_precendence_no() {
+        let pre = Precedence::No;
+        assert_eq!(Precedence::Assignemnt, pre.next())
+    }
+
+    #[test]
+    fn test_precendence_term() {
+        let pre = Precedence::Term;
+        assert_eq!(Precedence::Factor, pre.next())
+    }
+
+    #[test]
+    fn test_precendence_factor() {
+        let pre = Precedence::Factor;
+        assert_eq!(Precedence::Unary, pre.next())
+    }
+
+    #[test]
+    fn test_precendence_unary() {
+        let pre = Precedence::Unary;
+        assert_eq!(Precedence::Call, pre.next())
+    }
+
+    #[test]
+    fn test_precendence_call() {
+        let pre = Precedence::Call;
+        assert_eq!(Precedence::Primary, pre.next())
+    }
+
+    #[test]
+    fn test_precendence_primary() {
+        let pre = Precedence::Primary;
+        assert_eq!(Precedence::Primary, pre.next())
+    }
+
+    #[test]
+    fn test_compile() {
+        let source = "1 + 2".as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert_eq!(true, parser.compile());
+    }
+
+    #[test]
+    fn test_compile_negative() {
+        let source = "-1".as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert_eq!(true, parser.compile());
+    }
+
+    #[test]
+    fn test_compile_grouping() {
+        let source = "(1)".as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert_eq!(true, parser.compile());
+    }
+
+    #[test]
+    fn test_compile_grouping_negative() {
+        let source = "(-1)".as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert_eq!(true, parser.compile());
+    }
+
+    #[test]
+    fn test_compile_grouping_negative_with_plus() {
+        let source = "(-1 + 1)".as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert_eq!(true, parser.compile());
+    }
+
+    #[test]
+    fn test_compile_grouping_negative_with_plus_and_mult() {
+        let source = "(-1 + 1) * 2".as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert_eq!(true, parser.compile());
     }
 }
