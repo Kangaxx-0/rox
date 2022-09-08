@@ -141,7 +141,10 @@ impl<'a, 'b> Parser<'a, 'b> {
 
         match operator_type {
             TokenType::Plus => self.emit_byte(OpCode::Add),
-            _ => unreachable!(),
+            TokenType::Minus => self.emit_byte(OpCode::Subtract),
+            TokenType::Star => self.emit_byte(OpCode::Multiply),
+            TokenType::Slash => self.emit_byte(OpCode::Divide),
+            _ => unreachable!("{:?}", operator_type),
         }
     }
 
