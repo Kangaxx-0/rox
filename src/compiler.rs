@@ -210,7 +210,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             eprint!(" at {} {}", token.length, token.start);
         }
 
-        eprint!("{}", msg);
+        eprint!(" : {}", msg);
 
         self.had_error = true;
     }
