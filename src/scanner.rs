@@ -265,30 +265,30 @@ mod tests {
     #[test]
     fn test_match_type() {
         let mut scanner = Scanner::new("abc".as_bytes());
-        assert_eq!(true, scanner.match_type(b'a'));
-        assert_eq!(true, scanner.match_type(b'b'));
-        assert_eq!(true, scanner.match_type(b'c'));
-        assert_eq!(false, scanner.match_type(b'a'));
+        assert!(scanner.match_type(b'a'));
+        assert!(scanner.match_type(b'b'));
+        assert!(scanner.match_type(b'c'));
+        assert!(!scanner.match_type(b'a'));
     }
 
     #[test]
     fn test_is_end() {
         let mut scanner = Scanner::new("abc".as_bytes());
-        assert_eq!(false, scanner.is_end());
+        assert!(!scanner.is_end());
         scanner.next();
         scanner.next();
         scanner.next();
-        assert_eq!(true, scanner.is_end());
+        assert!(scanner.is_end());
     }
 
     #[test]
     fn test_skip_whitespace() {
         let mut scanner = Scanner::new("a   c".as_bytes());
-        assert_eq!(false, scanner.is_end());
+        assert!(!scanner.is_end());
         scanner.next();
         scanner.skip_whitespace();
         scanner.next();
-        assert_eq!(true, scanner.is_end());
+        assert!(scanner.is_end());
     }
 
     #[test]

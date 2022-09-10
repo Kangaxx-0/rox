@@ -2,7 +2,7 @@ use crate::chunk::Chunk;
 use crate::op_code::OpCode;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
-use crate::utils::convert_arrayslice_to_string;
+use crate::utils::convert_slice_to_string;
 use crate::value::Value;
 
 //FIXME - remove dead_code
@@ -10,11 +10,11 @@ use crate::value::Value;
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Precedence {
     No,
-    Assignemnt,
+    Assignment,
     Or,
     And,
     Equality,
-    Comparsion,
+    Comparison,
     Term,
     Factor,
     Unary,
@@ -25,12 +25,12 @@ enum Precedence {
 impl Precedence {
     fn next(&self) -> Self {
         match self {
-            Precedence::No => Precedence::Assignemnt,
-            Precedence::Assignemnt => Precedence::Or,
+            Precedence::No => Precedence::Assignment,
+            Precedence::Assignment => Precedence::Or,
             Precedence::Or => Precedence::And,
             Precedence::And => Precedence::Equality,
-            Precedence::Equality => Precedence::Comparsion,
-            Precedence::Comparsion => Precedence::Term,
+            Precedence::Equality => Precedence::Comparison,
+            Precedence::Comparison => Precedence::Term,
             Precedence::Term => Precedence::Factor,
             Precedence::Factor => Precedence::Unary,
             Precedence::Unary => Precedence::Call,
@@ -85,7 +85,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             return;
         }
 
-        self.error_at_curent(msg);
+        self.error_at_current(msg);
     }
 
     fn parse_precedence(&mut self, precedence: Precedence) {
@@ -112,7 +112,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn compile_number(&mut self) {
         let start = self.previous.start;
         let length = self.previous.length;
-        let value = convert_arrayslice_to_string(self.scanner.bytes, start, start + length);
+        let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
         let number = value
             .parse::<f64>()
             .expect("cannot convert target to usize");
@@ -178,18 +178,14 @@ impl<'a, 'b> Parser<'a, 'b> {
             if self.current.t_type == TokenType::Error {
                 let start = self.current.start;
                 let end = start + self.current.length;
-                self.error_at_curent(&convert_arrayslice_to_string(
-                    self.scanner.bytes,
-                    start,
-                    end,
-                ));
+                self.error_at_current(&convert_slice_to_string(self.scanner.bytes, start, end));
             } else {
                 break;
             }
         }
     }
 
-    fn error_at_curent(&mut self, msg: &str) {
+    fn error_at_current(&mut self, msg: &str) {
         self.error_at(self.current, msg);
     }
 
@@ -206,6 +202,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         if token.t_type == TokenType::Eof {
             eprint!(" at end");
         } else if token.t_type == TokenType::Error {
+            eprint!(" unknown type found.");
         } else {
             eprint!(" at {} {}", token.length, token.start);
         }
@@ -215,7 +212,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.had_error = true;
     }
     fn expression(&mut self) {
-        self.parse_precedence(Precedence::Assignemnt);
+        self.parse_precedence(Precedence::Assignment);
     }
     fn get_rule(&mut self, t: TokenType) -> ParseRule<'a, 'b> {
         match t {
@@ -271,37 +268,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_precendence_no() {
+    fn test_precedence_no() {
         let pre = Precedence::No;
-        assert_eq!(Precedence::Assignemnt, pre.next())
+        assert_eq!(Precedence::Assignment, pre.next())
     }
 
     #[test]
-    fn test_precendence_term() {
+    fn test_precedence_term() {
         let pre = Precedence::Term;
         assert_eq!(Precedence::Factor, pre.next())
     }
 
     #[test]
-    fn test_precendence_factor() {
+    fn test_precedence_factor() {
         let pre = Precedence::Factor;
         assert_eq!(Precedence::Unary, pre.next())
     }
 
     #[test]
-    fn test_precendence_unary() {
+    fn test_precedence_unary() {
         let pre = Precedence::Unary;
         assert_eq!(Precedence::Call, pre.next())
     }
 
     #[test]
-    fn test_precendence_call() {
+    fn test_precedence_call() {
         let pre = Precedence::Call;
         assert_eq!(Precedence::Primary, pre.next())
     }
 
     #[test]
-    fn test_precendence_primary() {
+    fn test_precedence_primary() {
         let pre = Precedence::Primary;
         assert_eq!(Precedence::Primary, pre.next())
     }
@@ -311,7 +308,7 @@ mod tests {
         let source = "1 + 2".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
-        assert_eq!(true, parser.compile());
+        assert!(parser.compile());
     }
 
     #[test]
@@ -319,7 +316,7 @@ mod tests {
         let source = "-1".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
-        assert_eq!(true, parser.compile());
+        assert!(parser.compile());
     }
 
     #[test]
@@ -327,7 +324,7 @@ mod tests {
         let source = "(1)".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
-        assert_eq!(true, parser.compile());
+        assert!(parser.compile());
     }
 
     #[test]
@@ -335,7 +332,7 @@ mod tests {
         let source = "(-1)".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
-        assert_eq!(true, parser.compile());
+        assert!(parser.compile());
     }
 
     #[test]
@@ -343,14 +340,14 @@ mod tests {
         let source = "(-1 + 1)".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
-        assert_eq!(true, parser.compile());
+        assert!(parser.compile());
     }
 
     #[test]
-    fn test_compile_grouping_negative_with_plus_and_mult() {
+    fn test_compile_grouping_negative_with_plus_and_multi() {
         let source = "(-1 + 1) * 2".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
-        assert_eq!(true, parser.compile());
+        assert!(parser.compile());
     }
 }

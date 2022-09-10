@@ -44,7 +44,7 @@ fn rox_arithmetic_minus() -> TestResult {
 }
 
 #[test]
-fn rox_arithmetic_mutiple() -> TestResult {
+fn rox_arithmetic_multiply() -> TestResult {
     run_test_contains("2*2", "Number(4.0)")
 }
 
