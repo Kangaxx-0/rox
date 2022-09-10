@@ -35,10 +35,29 @@ fn rox_constant_number() -> TestResult {
 
 #[test]
 fn rox_arithmetic_plus() -> TestResult {
-    run_test_contains(r"1+2", "Number(3.0)")
+    run_test_contains("1+2", "Number(3.0)")
 }
 
 #[test]
 fn rox_arithmetic_minus() -> TestResult {
-    run_test_contains(r"1-2", "Number(-1.0)")
+    run_test_contains("1-2", "Number(-1.0)")
+}
+
+#[test]
+fn rox_arithmetic_mutiple() -> TestResult {
+    run_test_contains("2*2", "Number(4.0)")
+}
+
+#[test]
+fn rox_arithmetic_negative() -> TestResult {
+    run_test_contains("-2", "Number(-2.0)")
+}
+#[test]
+fn rox_arithmetic_grouping() -> TestResult {
+    run_test_contains("(1+2)*3", "Number(9.0)")
+}
+
+#[test]
+fn rox_arithmetic_complex_grouping() -> TestResult {
+    run_test_contains("-((1+2)*2)", "Number(-6.0)")
 }
