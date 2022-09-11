@@ -29,7 +29,7 @@ impl Vm {
     }
 
     pub fn initialize(&mut self) {
-        self.stack_top = self.stack.as_mut_ptr();
+        self.reset_stack();
     }
 
     pub fn interpret(&mut self, bytes: &[u8]) -> Result<(), InterpretError> {
@@ -111,7 +111,10 @@ impl Vm {
                 }
                 OpCode::Add => match self.binary_operation(OpCode::Add) {
                     Ok(number) => println!("binary add gets {}", number),
-                    Err(e) => return Err(e),
+                    Err(e) => {
+                        self.runtime_error("operands must be two numbers");
+                        return Err(e);
+                    }
                 },
                 OpCode::Subtract => match self.binary_operation(OpCode::Subtract) {
                     Ok(number) => println!("binary subtract gets {}", number),
@@ -125,6 +128,18 @@ impl Vm {
                     Ok(number) => println!("binary divide gets {}", number),
                     Err(e) => return Err(e),
                 },
+                OpCode::Nil => {
+                    self.push(Value::Nil);
+                    result = Ok(());
+                }
+                OpCode::True => {
+                    self.push(Value::Bool(true));
+                    result = Ok(());
+                }
+                OpCode::False => {
+                    self.push(Value::Bool(false));
+                    result = Ok(());
+                }
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     result = Err(InterpretError::RuntimeError);
@@ -137,6 +152,21 @@ impl Vm {
         }
 
         result
+    }
+
+    fn runtime_error(&mut self, message: &str) {
+        eprint!("Runtime error: {}", message);
+
+        let instruction = self.ip - self.chunk.code.len() - 1;
+        let line = self.chunk.lines[instruction];
+
+        eprintln!(" [line {}]", line);
+
+        self.reset_stack();
+    }
+
+    fn reset_stack(&mut self) {
+        self.stack_top = self.stack.as_mut_ptr();
     }
 
     fn binary_operation(&mut self, code: OpCode) -> Result<f64, InterpretError> {
