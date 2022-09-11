@@ -308,4 +308,17 @@ mod tests {
         let mut scanner = Scanner::new("\"abc\"".as_bytes());
         assert_eq!(TokenType::Strings, scanner.scan_token().t_type);
     }
+
+    #[test]
+    fn test_bool() {
+        let mut scanner = Scanner::new("true false".as_bytes());
+        assert_eq!(TokenType::True, scanner.scan_token().t_type);
+        assert_eq!(TokenType::False, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_nil() {
+        let mut scanner = Scanner::new("nil".as_bytes());
+        assert_eq!(TokenType::Nil, scanner.scan_token().t_type);
+    }
 }

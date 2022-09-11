@@ -11,6 +11,9 @@ pub enum OpCode {
     Multiply,
     Divide,
     Return,
+    Nil,
+    True,
+    False,
 }
 
 impl Display for OpCode {
@@ -24,6 +27,9 @@ impl Display for OpCode {
             Self::Multiply => write!(f, "Multiply operation"),
             Self::Divide => write!(f, "Divide operation"),
             Self::Return => write!(f, "system return"),
+            Self::Nil => write!(f, "nil"),
+            Self::True => write!(f, "true"),
+            Self::False => write!(f, "false"),
         }
     }
 }

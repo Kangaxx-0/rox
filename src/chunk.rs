@@ -65,6 +65,9 @@ impl Chunk {
             OpCode::Subtract => self.constant_instruction("Subtract", None, offset, *line),
             OpCode::Multiply => self.constant_instruction("Multiply", None, offset, *line),
             OpCode::Divide => self.constant_instruction("Divide", None, offset, *line),
+            OpCode::Nil => self.constant_instruction("Nil", None, offset, *line),
+            OpCode::True => self.constant_instruction("True", None, offset, *line),
+            OpCode::False => self.constant_instruction("False", None, offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
@@ -184,6 +187,30 @@ mod tests {
         let mut chunk = Chunk::new();
         let code_return = OpCode::Return;
         chunk.push_instruction(code_return);
+        assert_eq!(1, chunk.len());
+    }
+
+    #[test]
+    fn test_false_instruction() {
+        let mut chunk = Chunk::new();
+        let code_false = OpCode::False;
+        chunk.push_instruction(code_false);
+        assert_eq!(1, chunk.len());
+    }
+
+    #[test]
+    fn test_true_instruction() {
+        let mut chunk = Chunk::new();
+        let code_true = OpCode::True;
+        chunk.push_instruction(code_true);
+        assert_eq!(1, chunk.len());
+    }
+
+    #[test]
+    fn test_nil_instruction() {
+        let mut chunk = Chunk::new();
+        let code_nil = OpCode::Nil;
+        chunk.push_instruction(code_nil);
         assert_eq!(1, chunk.len());
     }
 }

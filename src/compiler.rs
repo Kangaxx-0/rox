@@ -148,6 +148,15 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
+    fn compile_literal(&mut self) {
+        match self.previous.t_type {
+            TokenType::False => self.emit_byte(OpCode::False),
+            TokenType::True => self.emit_byte(OpCode::True),
+            TokenType::Nil => self.emit_byte(OpCode::Nil),
+            _ => unreachable!("{:?}", self.previous.t_type),
+        }
+    }
+
     fn emit_constant(&mut self, number: Value) {
         let index = self.chunk.push_constant(number);
 
@@ -231,18 +240,18 @@ impl<'a, 'b> Parser<'a, 'b> {
                 infix: Some(Parser::compile_binary),
                 precedence: Precedence::Term,
             },
-            TokenType::Slash => ParseRule {
-                prefix: None,
-                infix: Some(Parser::compile_binary),
-                precedence: Precedence::Factor,
-            },
-            TokenType::Star => ParseRule {
+            TokenType::Slash | TokenType::Star => ParseRule {
                 prefix: None,
                 infix: Some(Parser::compile_binary),
                 precedence: Precedence::Factor,
             },
             TokenType::Number => ParseRule {
                 prefix: Some(Parser::compile_number),
+                infix: None,
+                precedence: Precedence::No,
+            },
+            TokenType::Nil | TokenType::True | TokenType::False => ParseRule {
+                prefix: Some(Parser::compile_literal),
                 infix: None,
                 precedence: Precedence::No,
             },
