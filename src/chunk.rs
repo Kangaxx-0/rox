@@ -132,9 +132,9 @@ mod tests {
     #[test]
     fn test_is_empty() {
         let mut chunk = Chunk::new();
-        assert_eq!(chunk.is_empty(), true);
+        assert!(chunk.is_empty());
         chunk.write_to_chunk(OpCode::Constant(1), 1);
-        assert_eq!(chunk.is_empty(), false);
+        assert!(!chunk.is_empty());
     }
 
     #[test]
