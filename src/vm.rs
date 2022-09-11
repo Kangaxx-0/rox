@@ -62,6 +62,15 @@ impl Vm {
         }
     }
 
+    pub fn peek(&self, distance: usize) -> Value {
+        if self.stack_top as usize - distance < self.stack.as_ptr() as usize {
+            panic!("The stack does not have enough elements to peek")
+        }
+        // SAFETY: We never peek out value from empty stack or stack that does not have enough elements,
+        // so the index won't be negative, and offset cannot overflow an `isize`
+        unsafe { *self.stack_top.sub(distance + 1) }
+    }
+
     fn run(&mut self) -> Result<(), InterpretError> {
         let mut result = Err(InterpretError::Default);
         loop {
@@ -86,8 +95,16 @@ impl Vm {
                     result = Ok(());
                 }
                 OpCode::Negative => {
-                    if let Value::Number(v) = self.pop() {
-                        self.push(Value::Number(-v));
+                    match self.peek(0) {
+                        Value::Number(_) => {
+                            if let Value::Number(v) = self.pop() {
+                                self.push(Value::Number(-v));
+                            }
+                        }
+                        _ => {
+                            println!("operand must be a number");
+                            return Err(InterpretError::RuntimeError);
+                        }
                     }
 
                     result = Ok(());
