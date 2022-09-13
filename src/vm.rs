@@ -1,6 +1,6 @@
 use std::ptr;
 
-use crate::{chunk::Chunk, compiler::Parser, op_code::OpCode, value::Value};
+use crate::{chunk::Chunk, compiler::Parser, op_code::OpCode, utils::is_falsey, value::Value};
 
 const STACK_MAX: usize = 20;
 
@@ -138,6 +138,11 @@ impl Vm {
                 }
                 OpCode::False => {
                     self.push(Value::Bool(false));
+                    result = Ok(());
+                }
+                OpCode::Not => {
+                    let val = self.pop();
+                    self.push(Value::Bool(is_falsey(val)));
                     result = Ok(());
                 }
                 _ => {
