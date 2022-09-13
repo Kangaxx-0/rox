@@ -303,4 +303,20 @@ mod tests {
         vm.binary_operation(OpCode::Divide).unwrap();
         assert_eq!(vm.pop(), Value::Number(0.6666666666666666));
     }
+
+    #[test]
+    fn test_true() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.push(Value::Bool(true));
+        assert_eq!(vm.pop(), Value::Bool(true));
+    }
+
+    #[test]
+    fn test_false() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.push(Value::Bool(false));
+        assert_eq!(vm.pop(), Value::Bool(false));
+    }
 }

@@ -89,6 +89,32 @@ fn rox_arithmetic_complex_grouping() -> TestResult {
 }
 
 #[test]
+fn rox_false() -> TestResult {
+    run_test_contains("false", "Bool(false)")
+}
+
+#[test]
+fn rox_true() -> TestResult {
+    run_test_contains("true", "Bool(true)")
+}
+
+#[test]
+fn rox_falsey_false() -> TestResult {
+    run_test_contains("!false", "Bool(true)")
+}
+
+#[test]
+fn rox_falsey_true() -> TestResult {
+    run_test_contains("!true", "Bool(false)")
+}
+
+#[test]
 fn rox_nagative_string() -> TestResult {
     fail_test("-a", "unknown type found")
+}
+
+//FIXME - this test is failing
+#[test]
+fn rox_falsey_nil() -> TestResult {
+    run_test_contains("!nil", "Bool(true)")
 }
