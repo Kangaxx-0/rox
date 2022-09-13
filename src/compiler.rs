@@ -129,8 +129,14 @@ impl<'a, 'b> Parser<'a, 'b> {
 
         self.parse_precedence(Precedence::Unary);
 
-        if let TokenType::Minus = operator_type {
-            self.emit_byte(OpCode::Negative);
+        match operator_type {
+            TokenType::Minus => {
+                self.emit_byte(OpCode::Negative);
+            }
+            TokenType::Bang => {
+                self.emit_byte(OpCode::Not);
+            }
+            _ => (),
         }
     }
 
@@ -233,6 +239,11 @@ impl<'a, 'b> Parser<'a, 'b> {
             TokenType::Minus => ParseRule {
                 prefix: Some(Parser::compile_unary),
                 infix: Some(Parser::compile_binary),
+                precedence: Precedence::Term,
+            },
+            TokenType::Bang => ParseRule {
+                prefix: Some(Parser::compile_unary),
+                infix: None,
                 precedence: Precedence::Term,
             },
             TokenType::Plus => ParseRule {
