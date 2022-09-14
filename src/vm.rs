@@ -145,6 +145,20 @@ impl Vm {
                     self.push(Value::Bool(is_falsey(val)));
                     result = Ok(());
                 }
+                OpCode::Equal => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(Value::Bool(a == b));
+                    result = Ok(());
+                }
+                OpCode::Greater => match self.binary_operation(OpCode::Greater) {
+                    Ok(number) => println!("binary greater gets {}", number),
+                    Err(e) => return Err(e),
+                },
+                OpCode::Less => match self.binary_operation(OpCode::Less) {
+                    Ok(number) => println!("binary less gets {}", number),
+                    Err(e) => return Err(e),
+                },
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     result = Err(InterpretError::RuntimeError);
@@ -216,6 +230,28 @@ impl Vm {
                     let result = x2 / x1;
                     self.push(Value::Number(result));
                     Ok(result)
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    Err(InterpretError::RuntimeError)
+                }
+            }
+            OpCode::Greater => {
+                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                    let result = x2 > x1;
+                    self.push(Value::Bool(result));
+                    Ok(result as i32 as f64)
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    Err(InterpretError::RuntimeError)
+                }
+            }
+            OpCode::Less => {
+                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                    let result = x2 < x1;
+                    self.push(Value::Bool(result));
+                    Ok(result as i32 as f64)
                 } else {
                     self.push(v1);
                     self.push(v2);

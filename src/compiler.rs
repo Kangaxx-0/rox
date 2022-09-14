@@ -150,6 +150,12 @@ impl<'a, 'b> Parser<'a, 'b> {
             TokenType::Minus => self.emit_byte(OpCode::Subtract),
             TokenType::Star => self.emit_byte(OpCode::Multiply),
             TokenType::Slash => self.emit_byte(OpCode::Divide),
+            TokenType::EqualEqual => self.emit_byte(OpCode::Equal),
+            TokenType::BangEqual => self.emit_byte_two(OpCode::Equal, OpCode::Not),
+            TokenType::Greater => self.emit_byte(OpCode::Greater),
+            TokenType::GreaterEqual => self.emit_byte_two(OpCode::Less, OpCode::Not),
+            TokenType::Less => self.emit_byte(OpCode::Less),
+            TokenType::LessEqual => self.emit_byte_two(OpCode::Greater, OpCode::Not),
             _ => unreachable!("{:?}", operator_type),
         }
     }
@@ -180,8 +186,14 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn emit_return(&mut self) {
         self.emit_byte(OpCode::Return);
     }
+
     fn emit_byte(&mut self, code: OpCode) {
         self.chunk.write_to_chunk(code, self.previous.line);
+    }
+
+    fn emit_byte_two(&mut self, code1: OpCode, code2: OpCode) {
+        self.emit_byte(code1);
+        self.emit_byte(code2);
     }
 
     fn next_valid_token(&mut self) {
@@ -246,6 +258,11 @@ impl<'a, 'b> Parser<'a, 'b> {
                 infix: None,
                 precedence: Precedence::Term,
             },
+            TokenType::BangEqual | TokenType::EqualEqual => ParseRule {
+                prefix: None,
+                infix: Some(Parser::compile_binary),
+                precedence: Precedence::Equality,
+            },
             TokenType::Plus => ParseRule {
                 prefix: None,
                 infix: Some(Parser::compile_binary),
@@ -265,6 +282,14 @@ impl<'a, 'b> Parser<'a, 'b> {
                 prefix: Some(Parser::compile_literal),
                 infix: None,
                 precedence: Precedence::No,
+            },
+            TokenType::Greater
+            | TokenType::GreaterEqual
+            | TokenType::Less
+            | TokenType::LessEqual => ParseRule {
+                prefix: None,
+                infix: Some(Parser::compile_binary),
+                precedence: Precedence::Comparison,
             },
             _ => ParseRule {
                 prefix: None,

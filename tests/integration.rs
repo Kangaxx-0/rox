@@ -109,6 +109,45 @@ fn rox_falsey_true() -> TestResult {
 }
 
 #[test]
+fn rox_greater_true() -> TestResult {
+    run_test_contains("2 > 1", "Bool(true)")
+}
+
+#[test]
+fn rox_bang_bang() -> TestResult {
+    run_test_contains("1 != 2", "Bool(true)")
+}
+#[test]
+fn rox_greater_false() -> TestResult {
+    run_test_contains("1 > 2", "Bool(false)")
+}
+
+#[test]
+fn rox_greater_equal_true() -> TestResult {
+    run_test_contains("2 >= 2", "Bool(true)")
+}
+
+#[test]
+fn rox_greater_equal_true2() -> TestResult {
+    run_test_contains("2 > 1", "Bool(true)")
+}
+
+#[test]
+fn rox_less_equal_true() -> TestResult {
+    run_test_contains("1 <= 2", "Bool(true)")
+}
+
+#[test]
+fn rox_less_equal_true2() -> TestResult {
+    run_test_contains("2 <= 2", "Bool(true)")
+}
+
+#[test]
+fn rox_less_false() -> TestResult {
+    run_test_contains("2 < 1", "Bool(false)")
+}
+
+#[test]
 fn rox_nagative_string() -> TestResult {
     fail_test("-a", "unknown type found")
 }
