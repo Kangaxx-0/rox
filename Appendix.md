@@ -1,5 +1,6 @@
 
-# Chapter of Chunks of Bytecodes
+# 1.字节码块章节
+> # Chapter of Chunks of Bytecodes
 
 ## What is `uint8_t`?
 It is shorthand for: a type of unsigned integer of length 8 bits. With `<stdint.h>`, this new header defines a set of cross-platform types that can be used when you need an exact amount of bits,
@@ -60,11 +61,62 @@ enum OpCode {
 如果索引值很大，我们可以用`usize`
 > We can change `u8` to `usize` if the index goes large
 
+# 2.虚拟机章节
+> # 2.Chapter of A Virtual Machine
+
+TBD
+
+# 3.按需扫描章节
+> # 3.Chapter of Scanning on Demand
+
+TBD
+
+# 4.编译表达式章节
+> # 4.Chapter of Compiling Expressions
+
+```
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+// Precedence symbols:
+//  No -> no Precedence
+//  Assignment -> =
+//  Or -> or
+//  And -> and
+//  Equality -> == !=
+//  Comparison -> < > <= >=
+//  Term -> + -
+//  Factor -> * /
+//  Unary -> ! -
+//  Call -> . ()
+//  Primary -> literals and grouping
+//
+enum Precedence {
+    No,
+    Assignment,
+    Or,
+    And,
+    Equality,
+    Comparison,
+    Term,
+    Factor,
+    Unary,
+    Call,
+    Primary,
+}
+```
+
+##  `ParseFn`
+在实现[ParseFn](https://github.com/Kangaxx-0/rox/blob/main/src/compiler.rs#L56])的时候，我个人比较倾向用`fn`指针而不是`FnMut`特征因为我们并不需要捕获上下文环境
+> When implementing [ParseFn](https://github.com/Kangaxx-0/rox/blob/main/src/compiler.rs#L56]) I perfer to use funtion pointer `fn` instread of `FnMut` trait because we don't really need to capture context environment.
+
+## ParseRule数组
+> ## ParseRule Array
+
+在Rox里，我并没有为它去实现一个ParseRule数组，方法[get_rule](https://github.com/Kangaxx-0/rox/blob/main/src/compiler.rs)基于输入的`TokenType`返回一个规则
+> In rox, I did not implement an array of ParseRule, instead, the function [get_rule](https://github.com/Kangaxx-0/rox/blob/main/src/compiler.rs) gets the rule based on the input `TokenType`
 
 
+# 5.值类型章节
+> # 5.Chapter of Type of Values
 
-
-# Chapter of Chunks of Bytecodes
-
-##  `ParseRule` and `ParseFn`
-I perfer to use funtion pointer `fn` instread of `FnMut` trait because we don't really need to capture context environment.
+Rox的值类型充分利用了Rust里的`Enum`,所以当你阅读原书发现里面大量的C代码被抛弃， 不要感到惊讶
+> The Rox value types are fully leveraging the power of Rust `Enum`, do not be suprsied when you saw lots of C code from the book gets ditched in Rox
