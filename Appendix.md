@@ -2,17 +2,23 @@
 # 1.字节码块章节
 > # Chapter of Chunks of Bytecodes
 
-## What is `uint8_t`?
-It is shorthand for: a type of unsigned integer of length 8 bits. With `<stdint.h>`, this new header defines a set of cross-platform types that can be used when you need an exact amount of bits,
-with or without the sign.
+## `uint8_t`是什么?
+> ## What is `uint8_t`?
+`uint8_t`是无符号1个字节的整型，它一般被用来处理跨平台上需要同样比特的无符号或有符号类型
+> It is shorthand for: a type of unsigned integer of length 8 bits. With `<stdint.h>`, this new header defines a set of cross-platform types that can be used when you need an exact amount of bits, with or without the sign.
 
-## Why I use `prt::write`
-Since we need a contiguous block of memory for a vec, so be careful for raw pointer [`write`](https://doc.rust-lang.org/std/primitive.pointer.html#method.write) function because it overwrites a memory location, [`ptr::write`](https://doc.rust-lang.org/std/ptr/fn.write.html) expects a dst.
+## 为什么是`prt::write`
+> ## Why I use `prt::write`
+我们的向量需要连续的内存块，所以要必须小心原始指针的[`write`](https://doc.rust-lang.org/std/primitive.pointer.html#method.write) 方法覆写内存地址, [`ptr::write`](https://doc.rust-lang.org/std/ptr/fn.write.html) 则期望一个目标地址
+> Since we need a contiguous block of memory for a vec, so be careful for raw pointer [`write`](https://doc.rust-lang.org/std/primitive.pointer.html#method.write) function because it overwrites a memory location, [`ptr::write`](https://doc.rust-lang.org/std/ptr/fn.write.html) expects a dst.
 
-## The Constant Pool
+## 常量池
+> ## The Constant Pool
+Java虚拟机用`constant_pool`表来存储程序中的类/接口/类实例/数组等类型
+> Java Virtual Machine instructions do not rely on the run-time layout of classes, interfaces, class instances, or arrays. Instead, instructions refer to symbolic information in the `constant_pool` table.
 
-Java Virtual Machine instructions do not rely on the run-time layout of classes, interfaces, class instances, or arrays. Instead, instructions refer to symbolic information in the `constant_pool` table.
-All `constant_pool` table entries have the following general format:
+`constant_pool`表中的都会遵循下面的格式
+> All `constant_pool` table entries have the following general format:
 
 ```
 cp_info {
@@ -74,6 +80,8 @@ TBD
 # 4.编译表达式章节
 > # 4.Chapter of Compiling Expressions
 
+对于解析这部分，理解Vaughan Pratt的“自顶向下算符优先解析”算法有着非常重要的作用
+> For the parsing part, it is important to understand how Vaughan Pratt’s “top-down operator precedence parsing” algorithms works
 ```
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 // Precedence symbols:
@@ -103,6 +111,10 @@ enum Precedence {
     Primary,
 }
 ```
+<aside name="header">
+<img src="https://github.com/Kangaxx-0/rox/blob/main/assets/connections.png" alt="Precedence" />
+</aside>
+
 
 ##  `ParseFn`
 在实现[ParseFn](https://github.com/Kangaxx-0/rox/blob/main/src/compiler.rs#L56])的时候，我个人比较倾向用`fn`指针而不是`FnMut`特征因为我们并不需要捕获上下文环境
