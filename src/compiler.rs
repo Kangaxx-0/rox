@@ -8,6 +8,19 @@ use crate::value::Value;
 //FIXME - remove dead_code
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+// Precedence symbols:
+//  No -> no Precedence
+//  Assignment -> =
+//  Or -> or
+//  And -> and
+//  Equality -> == !=
+//  Comparison -> < > <= >=
+//  Term -> + -
+//  Factor -> * /
+//  Unary -> ! -
+//  Call -> . ()
+//  Primary -> literals and grouping
+//
 enum Precedence {
     No,
     Assignment,
@@ -86,27 +99,6 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
 
         self.error_at_current(msg);
-    }
-
-    fn parse_precedence(&mut self, precedence: Precedence) {
-        self.next_valid_token();
-
-        let prefix_rule = match self.get_rule(self.previous.t_type).prefix {
-            Some(rule) => rule,
-            None => {
-                self.error("Expect expression.");
-                return;
-            }
-        };
-
-        prefix_rule(self);
-
-        while precedence <= self.get_rule(self.current.t_type).precedence {
-            self.next_valid_token();
-            if let Some(infix_rule) = self.get_rule(self.previous.t_type).infix {
-                infix_rule(self);
-            }
-        }
     }
 
     fn compile_number(&mut self) {
@@ -298,6 +290,28 @@ impl<'a, 'b> Parser<'a, 'b> {
             },
         }
     }
+
+    fn parse_precedence(&mut self, precedence: Precedence) {
+        self.next_valid_token();
+
+        let prefix_rule = match self.get_rule(self.previous.t_type).prefix {
+            Some(rule) => rule,
+            None => {
+                self.error("Expect expression.");
+                return;
+            }
+        };
+
+        prefix_rule(self);
+
+        while precedence <= self.get_rule(self.current.t_type).precedence {
+            self.next_valid_token();
+            if let Some(infix_rule) = self.get_rule(self.previous.t_type).infix {
+                infix_rule(self);
+            }
+        }
+    }
+
     pub fn compile(&mut self) -> bool {
         self.next_valid_token();
         self.expression();
