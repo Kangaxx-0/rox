@@ -115,6 +115,11 @@ enum Precedence {
 <img src="https://github.com/Kangaxx-0/rox/blob/main/assets/connections.png" alt="Precedence" />
 </aside>
 
+## `Parser`结构
+> ## `Parser` structure
+在Rox，'Parser'包含一个对于`Chunk`的引用，同时拥有`Scanner`的所有权，这样做的目的是将关于解析分布的逻辑封装在一起
+> In rox, `parser` has a reference of `Chunk` and also owns `Scanner`, by doing this, a lot of funtional code can be grouped and co-existed together
+
 
 ##  `ParseFn`
 在实现[ParseFn](https://github.com/Kangaxx-0/rox/blob/main/src/compiler.rs#L56])的时候，我个人比较倾向用`fn`指针而不是`FnMut`特征因为我们并不需要捕获上下文环境
