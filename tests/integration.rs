@@ -148,8 +148,23 @@ fn rox_less_false() -> TestResult {
 }
 
 #[test]
+fn rox_compare_equal() -> TestResult {
+    run_test_contains("(1 == 1) == true", "Bool(true)")
+}
+
+#[test]
+fn rox_compare_group_equal() -> TestResult {
+    run_test_contains("(1 == 1) == (2 == 2)", "Bool(true)")
+}
+
+#[test]
 fn rox_nagative_string() -> TestResult {
     fail_test("-a", "unknown type found")
+}
+
+#[test]
+fn rox_print() -> TestResult {
+    run_test_contains("print true;", "true")
 }
 
 //FIXME - this test is failing

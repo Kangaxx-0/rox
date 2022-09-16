@@ -159,6 +159,11 @@ impl Vm {
                     Ok(number) => println!("binary less gets {}", number),
                     Err(e) => return Err(e),
                 },
+                OpCode::Print => {
+                    let val = self.pop();
+                    println!("Printing value of {:?}", val);
+                    result = Ok(());
+                }
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     result = Err(InterpretError::RuntimeError);
