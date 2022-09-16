@@ -161,6 +161,12 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
+    fn compile_print(&mut self) {
+        self.expression();
+        self.consume(TokenType::Semicolon, "Expect ';' after value");
+        self.emit_byte(OpCode::Print);
+    }
+
     fn emit_constant(&mut self, number: Value) {
         let index = self.chunk.push_constant(number);
 
@@ -282,6 +288,11 @@ impl<'a, 'b> Parser<'a, 'b> {
                 prefix: None,
                 infix: Some(Parser::compile_binary),
                 precedence: Precedence::Comparison,
+            },
+            TokenType::Print => ParseRule {
+                prefix: Some(Parser::compile_print),
+                infix: None,
+                precedence: Precedence::No,
             },
             _ => ParseRule {
                 prefix: None,
