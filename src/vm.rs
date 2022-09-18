@@ -50,8 +50,8 @@ impl Vm {
     }
 
     pub fn pop(&mut self) -> Value {
-        if let Value::Nil = self.stack[0] {
-            panic!("The stack is empty, cannot pop value")
+        if self.stack_top == self.stack.as_mut_ptr() {
+            panic!("Stack underflow");
         }
         // SAFETY: We never pop out value from empty stack, so the index won't be negative, and offset cannot overflow an `isize`
         // Also, we do not need to explicitly remove value from array, move `stackTop` down is
