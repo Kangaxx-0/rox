@@ -162,10 +162,30 @@ fn rox_nagative_string() -> TestResult {
     fail_test("-a", "unknown type found")
 }
 
-#[test]
-fn rox_print() -> TestResult {
-    run_test_contains("print true;", "true")
-}
+// #[test]
+// fn rox_print() -> TestResult {
+//     run_test_contains("print true;", "true")
+// }
+//
+// #[test]
+// fn rox_print_boolen() -> TestResult {
+//     run_test_contains("print true;", "true")
+// }
+//
+// #[test]
+// fn rox_print_number() -> TestResult {
+//     run_test_contains("print 1;", "1")
+// }
+//
+// #[test]
+// fn rox_print_string() -> TestResult {
+//     run_test_contains(r#"print "hello";"#, "hello")
+// }
+//
+// #[test]
+// fn rox_print_arithmetic() -> TestResult {
+//     run_test_contains("print 1+2*3+(1+1);", "a")
+// }
 
 //FIXME - this test is failing
 #[test]
