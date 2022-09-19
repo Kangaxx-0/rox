@@ -53,25 +53,25 @@ impl Precedence {
     }
 }
 
-type ParseFn<'a, 'b> = fn(&mut Parser<'a, 'b>) -> ();
+type ParseFn<'a> = fn(&mut Parser<'a>) -> ();
 
-struct ParseRule<'a, 'b> {
-    prefix: Option<ParseFn<'a, 'b>>,
-    infix: Option<ParseFn<'a, 'b>>,
+struct ParseRule<'a> {
+    prefix: Option<ParseFn<'a>>,
+    infix: Option<ParseFn<'a>>,
     precedence: Precedence,
 }
 
-pub struct Parser<'a, 'b> {
+pub struct Parser<'a> {
     scanner: Scanner<'a>,
-    chunk: &'b mut Chunk,
+    chunk: &'a mut Chunk,
     current: Token,
     previous: Token,
     had_error: bool,
     panic_mode: bool,
 }
 
-impl<'a, 'b> Parser<'a, 'b> {
-    pub fn new(source: &'a [u8], chunk: &'b mut Chunk) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(source: &'a [u8], chunk: &'a mut Chunk) -> Self {
         Self {
             scanner: Scanner::new(source),
             chunk,
@@ -239,7 +239,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn expression(&mut self) {
         self.parse_precedence(Precedence::Assignment);
     }
-    fn get_rule(&mut self, t: TokenType) -> ParseRule<'a, 'b> {
+    fn get_rule(&mut self, t: TokenType) -> ParseRule<'a> {
         match t {
             TokenType::LeftParen => ParseRule {
                 prefix: Some(Parser::compile_grouping),
