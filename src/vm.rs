@@ -14,8 +14,8 @@ pub enum InterpretError {
 pub struct Vm {
     chunk: Chunk,
     ip: usize,
-    stack: [Value; STACK_MAX],
-    stack_top: *mut Value,
+    stack: [Option<Value>; STACK_MAX],
+    stack_top: *mut Option<Value>,
 }
 
 impl Vm {
@@ -23,7 +23,7 @@ impl Vm {
         Self {
             chunk: Chunk::new(),
             ip: 0,
-            stack: [Value::Nil; STACK_MAX],
+            stack: [None; STACK_MAX],
             stack_top: ptr::null_mut(),
         }
     }
@@ -44,12 +44,12 @@ impl Vm {
     pub fn push(&mut self, value: Value) {
         // SAFETY: the pushing value will not be null, and offset cannot overflow an `isize`
         unsafe {
-            *self.stack_top = value;
+            *self.stack_top = Some(value);
             self.stack_top = self.stack_top.add(1);
         }
     }
 
-    pub fn pop(&mut self) -> Value {
+    pub fn pop(&mut self) -> Option<Value> {
         if self.stack_top == self.stack.as_mut_ptr() {
             panic!("Stack underflow");
         }
@@ -62,7 +62,7 @@ impl Vm {
         }
     }
 
-    pub fn peek(&self, distance: usize) -> Value {
+    pub fn peek(&self, distance: usize) -> Option<Value> {
         if self.stack_top as usize - distance < self.stack.as_ptr() as usize {
             panic!("The stack does not have enough elements to peek")
         }
@@ -83,7 +83,7 @@ impl Vm {
             self.chunk.disassemble_instruction(self.ip);
             match &chunk.code[self.ip] {
                 OpCode::Return => {
-                    let val = self.pop();
+                    let val = self.pop().expect("unable to pop value from stack");
                     println!("Returning value of {:?}", val);
                     result = Ok(())
                 }
@@ -95,9 +95,9 @@ impl Vm {
                     result = Ok(());
                 }
                 OpCode::Negative => {
-                    match self.peek(0) {
+                    match self.peek(0).expect("unable to peek value") {
                         Value::Number(_) => {
-                            if let Value::Number(v) = self.pop() {
+                            if let Value::Number(v) = self.pop().expect("unable to pop value") {
                                 self.push(Value::Number(-v));
                             }
                         }
@@ -141,7 +141,7 @@ impl Vm {
                     result = Ok(());
                 }
                 OpCode::Not => {
-                    let val = self.pop();
+                    let val = self.pop().expect("unable to pop value");
                     self.push(Value::Bool(is_falsey(val)));
                     result = Ok(());
                 }
@@ -160,7 +160,7 @@ impl Vm {
                     Err(e) => return Err(e),
                 },
                 OpCode::Print => {
-                    let val = self.pop();
+                    let val = self.pop().expect("unable to pop value");
                     println!("Printing value of {:?}", val);
                     result = Ok(());
                 }
@@ -194,7 +194,10 @@ impl Vm {
     }
 
     fn binary_operation(&mut self, code: OpCode) -> Result<f64, InterpretError> {
-        let (v1, v2) = (self.pop(), self.pop());
+        let (v1, v2) = (
+            self.pop().expect("unable to pop value"),
+            self.pop().expect("unable to pop value"),
+        );
         match code {
             //FIXME - Refactor and simplify the code later
             OpCode::Add => {
@@ -293,9 +296,9 @@ mod tests {
         vm.push(Value::Number(2.0));
         vm.push(Value::Number(3.0));
 
-        assert_eq!(vm.pop(), Value::Number(3.0));
-        assert_eq!(vm.pop(), Value::Number(2.0));
-        assert_eq!(vm.pop(), Value::Number(1.0));
+        assert_eq!(vm.pop(), Some(Value::Number(3.0)));
+        assert_eq!(vm.pop(), Some(Value::Number(2.0)));
+        assert_eq!(vm.pop(), Some(Value::Number(1.0)));
     }
 
     #[test]
@@ -307,7 +310,7 @@ mod tests {
         vm.push(Value::Number(3.0));
 
         vm.binary_operation(OpCode::Add).unwrap();
-        assert_eq!(vm.pop(), Value::Number(5.0));
+        assert_eq!(vm.pop(), Some(Value::Number(5.0)));
     }
 
     #[test]
@@ -319,7 +322,7 @@ mod tests {
         vm.push(Value::Number(3.0));
 
         vm.binary_operation(OpCode::Subtract).unwrap();
-        assert_eq!(vm.pop(), Value::Number(-1.0));
+        assert_eq!(vm.pop(), Some(Value::Number(-1.0)));
     }
 
     #[test]
@@ -331,7 +334,7 @@ mod tests {
         vm.push(Value::Number(3.0));
 
         vm.binary_operation(OpCode::Multiply).unwrap();
-        assert_eq!(vm.pop(), Value::Number(6.0));
+        assert_eq!(vm.pop(), Some(Value::Number(6.0)));
     }
 
     #[test]
@@ -342,7 +345,7 @@ mod tests {
         vm.push(Value::Number(3.0));
 
         vm.binary_operation(OpCode::Divide).unwrap();
-        assert_eq!(vm.pop(), Value::Number(0.6666666666666666));
+        assert_eq!(vm.pop(), Some(Value::Number(0.6666666666666666)));
     }
 
     #[test]
@@ -350,7 +353,7 @@ mod tests {
         let mut vm = Vm::new();
         vm.initialize();
         vm.push(Value::Bool(true));
-        assert_eq!(vm.pop(), Value::Bool(true));
+        assert_eq!(vm.pop(), Some(Value::Bool(true)));
     }
 
     #[test]
@@ -358,6 +361,6 @@ mod tests {
         let mut vm = Vm::new();
         vm.initialize();
         vm.push(Value::Bool(false));
-        assert_eq!(vm.pop(), Value::Bool(false));
+        assert_eq!(vm.pop(), Some(Value::Bool(false)));
     }
 }
