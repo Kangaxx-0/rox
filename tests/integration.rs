@@ -158,6 +158,10 @@ fn rox_compare_group_equal() -> TestResult {
 }
 
 #[test]
+fn rox_nil() -> TestResult {
+    run_test_contains("nil", "Nil")
+}
+#[test]
 fn rox_nagative_string() -> TestResult {
     fail_test("-a", "unknown type found")
 }
