@@ -161,6 +161,14 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn compile_string(&mut self) {
+        let start = self.previous.start + 1;
+        let length = self.previous.length - 2;
+        let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
+        self.next_valid_token();
+        self.emit_constant(Value::String(value));
+    }
+
     fn compile_print(&mut self) {
         self.expression();
         self.consume(TokenType::Semicolon, "Expect ';' after value");
@@ -294,6 +302,11 @@ impl<'a> Parser<'a> {
                 infix: None,
                 precedence: Precedence::No,
             },
+            TokenType::Strings => ParseRule {
+                prefix: Some(Parser::compile_string),
+                infix: None,
+                precedence: Precedence::No,
+            },
             _ => ParseRule {
                 prefix: None,
                 infix: None,
@@ -416,6 +429,14 @@ mod tests {
     #[test]
     fn test_compile_grouping_negative_with_plus_and_multi() {
         let source = "(-1 + 1) * 2".as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert!(parser.compile());
+    }
+
+    #[test]
+    fn test_compile_string() {
+        let source = r#""hello""#.as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
