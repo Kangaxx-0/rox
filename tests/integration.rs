@@ -166,6 +166,11 @@ fn rox_nagative_string() -> TestResult {
     fail_test("-a", "unknown type found")
 }
 
+#[test]
+fn rox_string() -> TestResult {
+    run_test_contains("\"a\"", "String(\"a\")")
+}
+
 // #[test]
 // fn rox_print() -> TestResult {
 //     run_test_contains("print true;", "true")

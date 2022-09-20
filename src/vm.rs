@@ -54,10 +54,10 @@ impl Vm {
                     result = Ok(())
                 }
                 OpCode::Constant(v) => {
-                    let val = self.chunk.constants[*v as usize];
+                    let val = &self.chunk.constants[*v];
                     println!("Executing value {:?}", val);
 
-                    self.stack.push(val);
+                    self.stack.push(val.clone());
                     result = Ok(());
                 }
                 OpCode::Negative => {
@@ -164,7 +164,7 @@ impl Vm {
         match code {
             //FIXME - Refactor and simplify the code later
             OpCode::Add => {
-                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 + x1;
                     self.stack.push(Value::Number(result));
                     Ok(result)
@@ -175,7 +175,7 @@ impl Vm {
                 }
             }
             OpCode::Subtract => {
-                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 - x1;
                     self.stack.push(Value::Number(result));
                     Ok(result)
@@ -186,7 +186,7 @@ impl Vm {
                 }
             }
             OpCode::Multiply => {
-                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 * x1;
                     self.stack.push(Value::Number(result));
                     Ok(result)
@@ -197,7 +197,7 @@ impl Vm {
                 }
             }
             OpCode::Divide => {
-                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 / x1;
                     self.stack.push(Value::Number(result));
                     Ok(result)
@@ -208,7 +208,7 @@ impl Vm {
                 }
             }
             OpCode::Greater => {
-                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 > x1;
                     self.stack.push(Value::Bool(result));
                     Ok(result as i32 as f64)
@@ -219,7 +219,7 @@ impl Vm {
                 }
             }
             OpCode::Less => {
-                if let (Value::Number(x1), Value::Number(x2)) = (v1, v2) {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 < x1;
                     self.stack.push(Value::Bool(result));
                     Ok(result as i32 as f64)
@@ -325,5 +325,13 @@ mod tests {
         vm.initialize();
         vm.stack.push(Value::Bool(false));
         assert_eq!(vm.stack.pop(), Some(Value::Bool(false)));
+    }
+
+    #[test]
+    fn test_string() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.stack.push(Value::String("hello".to_string()));
+        assert_eq!(vm.stack.pop(), Some(Value::String("hello".to_string())));
     }
 }

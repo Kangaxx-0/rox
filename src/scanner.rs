@@ -189,7 +189,7 @@ impl<'bytes> Scanner<'bytes> {
     }
 
     fn string(&mut self) -> Token {
-        while self.peek() != b'"' && self.is_end() {
+        while self.peek() != b'"' && !self.is_end() {
             if self.peek() == b'\n' {
                 self.line += 1;
             }
