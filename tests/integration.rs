@@ -171,6 +171,11 @@ fn rox_string() -> TestResult {
     run_test_contains("\"a\"", "String(\"a\")")
 }
 
+#[test]
+fn rox_string_concate() -> TestResult {
+    run_test_contains(r#" "a" + "b" "#, r#"String("ab")"#)
+}
+
 // #[test]
 // fn rox_print() -> TestResult {
 //     run_test_contains("print true;", "true")
@@ -196,6 +201,20 @@ fn rox_string() -> TestResult {
 //     run_test_contains("print 1+2*3+(1+1);", "a")
 // }
 
+#[test]
+fn rox_add_failed() -> TestResult {
+    fail_test("1 + true", "operands must be two numbers or two strings")
+}
+
+#[test]
+fn rox_multiply_failed() -> TestResult {
+    fail_test(r#"1 * "a""#, "operands must be two numbers")
+}
+
+#[test]
+fn rox_subtract_failed() -> TestResult {
+    fail_test(r#"1 - "a""#, "operands must be two numbers")
+}
 //FIXME - this test is failing
 #[test]
 #[ignore = "This test is failing"]

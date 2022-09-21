@@ -55,7 +55,7 @@ impl Vm {
                 }
                 OpCode::Constant(v) => {
                     let val = &self.chunk.constants[*v];
-                    println!("Executing value {:?}", val);
+                    // println!("Executing value {:?}", val);
 
                     self.stack.push(val.clone());
                     result = Ok(());
@@ -76,25 +76,30 @@ impl Vm {
 
                     result = Ok(());
                 }
-                OpCode::Add => match self.binary_operation(OpCode::Add) {
-                    Ok(number) => println!("binary add gets {}", number),
-                    Err(e) => {
-                        self.runtime_error("operands must be two numbers");
-                        return Err(e);
+                OpCode::Add => {
+                    if let Err(_) = self.binary_operation(OpCode::Add) {
+                        self.runtime_error("operands must be two numbers or two strings");
+                        return Err(InterpretError::RuntimeError);
                     }
-                },
-                OpCode::Subtract => match self.binary_operation(OpCode::Subtract) {
-                    Ok(number) => println!("binary subtract gets {}", number),
-                    Err(e) => return Err(e),
-                },
-                OpCode::Multiply => match self.binary_operation(OpCode::Multiply) {
-                    Ok(number) => println!("binary multiply gets {}", number),
-                    Err(e) => return Err(e),
-                },
-                OpCode::Divide => match self.binary_operation(OpCode::Divide) {
-                    Ok(number) => println!("binary divide gets {}", number),
-                    Err(e) => return Err(e),
-                },
+                }
+                OpCode::Subtract => {
+                    if let Err(_) = self.binary_operation(OpCode::Subtract) {
+                        self.runtime_error("operands must be two numbers");
+                        return Err(InterpretError::RuntimeError);
+                    }
+                }
+                OpCode::Multiply => {
+                    if let Err(_) = self.binary_operation(OpCode::Multiply) {
+                        self.runtime_error("operands must be two numbers");
+                        return Err(InterpretError::RuntimeError);
+                    }
+                }
+                OpCode::Divide => {
+                    if let Err(_) = self.binary_operation(OpCode::Divide) {
+                        self.runtime_error("operands must be two numbers");
+                        return Err(InterpretError::RuntimeError);
+                    }
+                }
                 OpCode::Nil => {
                     self.stack.push(Value::Nil);
                     result = Ok(());
@@ -118,14 +123,8 @@ impl Vm {
                     self.stack.push(Value::Bool(a == b));
                     result = Ok(());
                 }
-                OpCode::Greater => match self.binary_operation(OpCode::Greater) {
-                    Ok(number) => println!("binary greater gets {}", number),
-                    Err(e) => return Err(e),
-                },
-                OpCode::Less => match self.binary_operation(OpCode::Less) {
-                    Ok(number) => println!("binary less gets {}", number),
-                    Err(e) => return Err(e),
-                },
+                OpCode::Greater => self.binary_operation(OpCode::Greater)?,
+                OpCode::Less => self.binary_operation(OpCode::Less)?,
                 OpCode::Print => {
                     let val = self.stack.pop().expect("unable to pop value");
                     println!("Printing value of {:?}", val);
@@ -156,7 +155,7 @@ impl Vm {
         self.stack.reset();
     }
 
-    fn binary_operation(&mut self, code: OpCode) -> Result<f64, InterpretError> {
+    fn binary_operation(&mut self, code: OpCode) -> Result<(), InterpretError> {
         let (v1, v2) = (
             self.stack.pop().expect("unable to pop value"),
             self.stack.pop().expect("unable to pop value"),
@@ -167,7 +166,12 @@ impl Vm {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 + x1;
                     self.stack.push(Value::Number(result));
-                    Ok(result)
+                    Ok(())
+                } else if let (Value::String(x1), Value::String(x2)) = (&v1, &v2) {
+                    let mut result = x2.clone();
+                    result.push_str(x1);
+                    self.stack.push(Value::String(result));
+                    Ok(())
                 } else {
                     self.stack.push(v1);
                     self.stack.push(v2);
@@ -178,7 +182,7 @@ impl Vm {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 - x1;
                     self.stack.push(Value::Number(result));
-                    Ok(result)
+                    Ok(())
                 } else {
                     self.stack.push(v1);
                     self.stack.push(v2);
@@ -189,7 +193,7 @@ impl Vm {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 * x1;
                     self.stack.push(Value::Number(result));
-                    Ok(result)
+                    Ok(())
                 } else {
                     self.stack.push(v1);
                     self.stack.push(v2);
@@ -200,7 +204,7 @@ impl Vm {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 / x1;
                     self.stack.push(Value::Number(result));
-                    Ok(result)
+                    Ok(())
                 } else {
                     self.stack.push(v1);
                     self.stack.push(v2);
@@ -211,7 +215,7 @@ impl Vm {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 > x1;
                     self.stack.push(Value::Bool(result));
-                    Ok(result as i32 as f64)
+                    Ok(())
                 } else {
                     self.stack.push(v1);
                     self.stack.push(v2);
@@ -222,7 +226,7 @@ impl Vm {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 < x1;
                     self.stack.push(Value::Bool(result));
-                    Ok(result as i32 as f64)
+                    Ok(())
                 } else {
                     self.stack.push(v1);
                     self.stack.push(v2);
