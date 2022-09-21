@@ -149,6 +149,8 @@ impl<'bytes> Scanner<'bytes> {
                         while self.peek() != b'\n' || self.is_end() {
                             self.next();
                         }
+                    } else {
+                        break;
                     }
                 }
                 _ => return,

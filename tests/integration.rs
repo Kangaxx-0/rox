@@ -215,6 +215,11 @@ fn rox_multiply_failed() -> TestResult {
 fn rox_subtract_failed() -> TestResult {
     fail_test(r#"1 - "a""#, "operands must be two numbers")
 }
+
+#[test]
+fn rox_divided_failed() -> TestResult {
+    fail_test(r#"1 / "a""#, "operands must be two numbers")
+}
 //FIXME - this test is failing
 #[test]
 #[ignore = "This test is failing"]
