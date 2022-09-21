@@ -165,7 +165,6 @@ impl<'a> Parser<'a> {
         let start = self.previous.start + 1;
         let length = self.previous.length - 2;
         let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
-        self.next_valid_token();
         self.emit_constant(Value::String(value));
     }
 
