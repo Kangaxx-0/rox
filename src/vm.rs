@@ -77,25 +77,25 @@ impl Vm {
                     result = Ok(());
                 }
                 OpCode::Add => {
-                    if let Err(_) = self.binary_operation(OpCode::Add) {
+                    if self.binary_operation(OpCode::Add).is_err() {
                         self.runtime_error("operands must be two numbers or two strings");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Subtract => {
-                    if let Err(_) = self.binary_operation(OpCode::Subtract) {
+                    if self.binary_operation(OpCode::Subtract).is_err() {
                         self.runtime_error("operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Multiply => {
-                    if let Err(_) = self.binary_operation(OpCode::Multiply) {
+                    if self.binary_operation(OpCode::Multiply).is_err() {
                         self.runtime_error("operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Divide => {
-                    if let Err(_) = self.binary_operation(OpCode::Divide) {
+                    if self.binary_operation(OpCode::Divide).is_err() {
                         self.runtime_error("operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
