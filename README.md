@@ -1,5 +1,8 @@
 # rox
+
 An RUST implementation of clox from Robert Nystrom's book "Crafting Interperters", if you would like to catch the details faster, you might want to read the previous sections about [AST section](https://craftinginterpreters.com/a-tree-walk-interpreter.html), or taking the reading list below
+
+> This repo has two main branches: `main` and `safe`, `safe` is with rapid ongoing changes, and it can be considered as main branch at this moment
 
 How bytecode VM interpreter works:
 
