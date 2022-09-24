@@ -94,7 +94,12 @@ impl HashTable {
             let mut index = entry.key.hash as usize % capacity;
 
             while index < capacity {
-                if entries.get(index).unwrap().value != Value::Nil {
+                if entries
+                    .get(index)
+                    .expect("this position should be initialized")
+                    .value
+                    != Value::Nil
+                {
                     entries[index] = entry.clone();
                 }
                 index += 1;
