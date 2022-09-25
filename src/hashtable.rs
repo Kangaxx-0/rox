@@ -62,7 +62,6 @@ impl HashTable {
                 if entry.key == *key {
                     return (Some(()), index);
                 }
-
                 index = (index + 1) % self.capacity;
             }
         }
