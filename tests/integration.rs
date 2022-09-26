@@ -176,30 +176,25 @@ fn rox_string_concate() -> TestResult {
     run_test_contains(r#" "a" + "b" "#, r#"String("ab")"#)
 }
 
-// #[test]
-// fn rox_print() -> TestResult {
-//     run_test_contains("print true;", "true")
-// }
-//
-// #[test]
-// fn rox_print_boolen() -> TestResult {
-//     run_test_contains("print true;", "true")
-// }
-//
-// #[test]
-// fn rox_print_number() -> TestResult {
-//     run_test_contains("print 1;", "1")
-// }
-//
-// #[test]
-// fn rox_print_string() -> TestResult {
-//     run_test_contains(r#"print "hello";"#, "hello")
-// }
-//
-// #[test]
-// fn rox_print_arithmetic() -> TestResult {
-//     run_test_contains("print 1+2*3+(1+1);", "a")
-// }
+#[test]
+fn rox_print() -> TestResult {
+    run_test_contains("print true;", "true")
+}
+
+#[test]
+fn rox_print_number() -> TestResult {
+    run_test_contains("print 1;", "1")
+}
+
+#[test]
+fn rox_print_string() -> TestResult {
+    run_test_contains(r#"print "hello";"#, "hello")
+}
+
+#[test]
+fn rox_print_arithmetic() -> TestResult {
+    run_test_contains("print 1+2*3+(1+1);", "9")
+}
 
 #[test]
 fn rox_add_failed() -> TestResult {

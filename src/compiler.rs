@@ -335,9 +335,36 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn check(&mut self, t: TokenType) -> bool {
+        self.current.t_type == t
+    }
+
+    fn match_token(&mut self, print: TokenType) -> bool {
+        if !self.check(print) {
+            return false;
+        }
+        self.next_valid_token();
+        true
+    }
+
+    fn statement(&mut self) {
+        if self.match_token(TokenType::Print) {
+            self.compile_print();
+        } else {
+            self.expression();
+        }
+    }
+
+    fn declaration(&mut self) {
+        self.statement()
+    }
+
     pub fn compile(&mut self) -> bool {
         self.next_valid_token();
-        self.expression();
+
+        while self.current.t_type != TokenType::Eof {
+            self.declaration();
+        }
 
         self.consume(TokenType::Eof, "Expect end of expression.");
         self.end_compiler();

@@ -48,15 +48,9 @@ impl Vm {
             self.print_stack();
             self.chunk.disassemble_instruction(self.ip);
             match &chunk.code[self.ip] {
-                OpCode::Return => {
-                    let val = self.stack.pop().expect("unable to pop value from stack");
-                    println!("Returning value of {:?}", val);
-                    result = Ok(())
-                }
+                OpCode::Return => result = Ok(()),
                 OpCode::Constant(v) => {
                     let val = &self.chunk.constants[*v];
-                    // println!("Executing value {:?}", val);
-
                     self.stack.push(val.clone());
                     result = Ok(());
                 }
