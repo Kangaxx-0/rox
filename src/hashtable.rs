@@ -69,13 +69,13 @@ impl HashTable {
         (None, index)
     }
 
-    fn get(&self, key: &HashKeyString) -> Option<Value> {
+    fn get(&self, key: &HashKeyString) -> Option<&Value> {
         if self.count == 0 {
             return None;
         }
         let (found, index) = self.find_entry(key);
         if found.is_some() {
-            Some(self.entries[index].value.clone())
+            Some(&self.entries[index].value)
         } else {
             None
         }
@@ -312,7 +312,7 @@ mod tests {
         table.insert(key, Value::Number(8.0));
         assert_eq!(table.count, 8);
         assert_eq!(table.capacity, 16);
-        assert_eq!(table.get(&key1), Some(Value::Number(1.0)));
+        assert_eq!(table.get(&key1), Some(&Value::Number(1.0)));
     }
 
     #[test]
@@ -331,7 +331,7 @@ mod tests {
             hash: HashTable::hash("hello"),
         };
         let value = table.get(&key);
-        assert_eq!(value, Some(Value::Number(1.0)));
+        assert_eq!(value, Some(&Value::Number(1.0)));
     }
 
     #[test]
