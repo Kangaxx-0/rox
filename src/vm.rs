@@ -119,6 +119,10 @@ impl Vm {
                 }
                 OpCode::Greater => self.binary_operation(OpCode::Greater)?,
                 OpCode::Less => self.binary_operation(OpCode::Less)?,
+                OpCode::Pop => {
+                    self.stack.pop();
+                    result = Ok(());
+                }
                 OpCode::Print => {
                     let val = self.stack.pop().expect("unable to pop value");
                     println!("Printing value of {:?}", val);
