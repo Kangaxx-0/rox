@@ -347,16 +347,50 @@ impl<'a> Parser<'a> {
         true
     }
 
+    fn expression_statement(&mut self) {
+        self.expression();
+        self.consume(TokenType::Semicolon, "Expect ';' after expression.");
+        self.emit_byte(OpCode::Pop);
+    }
+
     fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
             self.compile_print();
         } else {
-            self.expression();
+            self.expression_statement();
+        }
+    }
+
+    fn synchronize(&mut self) {
+        self.panic_mode = false;
+
+        while self.current.t_type != TokenType::Eof {
+            if self.previous.t_type == TokenType::Semicolon {
+                return;
+            }
+
+            match self.current.t_type {
+                TokenType::Class
+                | TokenType::Fun
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => return,
+                _ => (),
+            }
+
+            self.next_valid_token();
         }
     }
 
     fn declaration(&mut self) {
-        self.statement()
+        self.statement();
+
+        if self.panic_mode {
+            self.synchronize();
+        }
     }
 
     pub fn compile(&mut self) -> bool {
@@ -414,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_compile() {
-        let source = "1 + 2".as_bytes();
+        let source = "1 + 2;".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
@@ -422,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_compile_negative() {
-        let source = "-1".as_bytes();
+        let source = "-1;".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
@@ -430,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_compile_grouping() {
-        let source = "(1)".as_bytes();
+        let source = "(1);".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
@@ -438,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_compile_grouping_negative() {
-        let source = "(-1)".as_bytes();
+        let source = "(-1);".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
@@ -446,7 +480,7 @@ mod tests {
 
     #[test]
     fn test_compile_grouping_negative_with_plus() {
-        let source = "(-1 + 1)".as_bytes();
+        let source = "(-1 + 1);".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
@@ -454,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_compile_grouping_negative_with_plus_and_multi() {
-        let source = "(-1 + 1) * 2".as_bytes();
+        let source = "(-1 + 1) * 2;".as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
@@ -462,9 +496,18 @@ mod tests {
 
     #[test]
     fn test_compile_string() {
-        let source = r#""hello""#.as_bytes();
+        let source = r#""hello";"#.as_bytes();
         let mut chunk = Chunk::new();
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
+    }
+
+    #[test]
+    fn test_synchonize() {
+        let source = r#"1 + &;"#.as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert!(!parser.compile());
+        assert!(parser.had_error);
     }
 }

@@ -73,6 +73,7 @@ impl Chunk {
             OpCode::Greater => self.constant_instruction("Greater", None, offset, *line),
             OpCode::Less => self.constant_instruction("Less", None, offset, *line),
             OpCode::Print => self.constant_instruction("Print", None, offset, *line),
+            OpCode::Pop => self.constant_instruction("Pop", None, offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
