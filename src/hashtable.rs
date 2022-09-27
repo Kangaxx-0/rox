@@ -6,8 +6,8 @@ const TABLE_MAX_LOAD: f32 = 0.75;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct HashKeyString {
-    value: String,
-    hash: u64,
+    pub value: String,
+    pub hash: u64,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -24,7 +24,7 @@ pub struct HashTable {
 }
 
 impl HashTable {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             entries: Vec::new(),
             count: 0,
@@ -32,7 +32,7 @@ impl HashTable {
         }
     }
 
-    fn insert(&mut self, key: HashKeyString, value: Value) {
+    pub fn insert(&mut self, key: HashKeyString, value: Value) {
         let threshold = (self.capacity as f32 * TABLE_MAX_LOAD) as usize;
         if self.count + 1 > threshold {
             let capaicty = self.grow_capacity();
@@ -136,19 +136,19 @@ impl HashTable {
         self.capacity = capacity;
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.count == 0
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.count
     }
 
-    fn capacity(&self) -> usize {
+    pub fn capacity(&self) -> usize {
         self.capacity
     }
 
-    fn remove_all(&mut self) {
+    pub fn remove_all(&mut self) {
         self.entries.clear();
         self.count = 0;
         self.capacity = 0;
@@ -162,7 +162,7 @@ impl HashTable {
         }
     }
 
-    fn hash(key: &str) -> u64 {
+    pub fn hash(key: &str) -> u64 {
         let mut hash = 0xcbf29ce484222325;
 
         for c in key.as_bytes() {
