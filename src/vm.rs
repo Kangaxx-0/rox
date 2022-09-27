@@ -1,5 +1,11 @@
 use crate::{
-    chunk::Chunk, compiler::Parser, op_code::OpCode, stack::Stack, utils::is_falsey, value::Value,
+    chunk::Chunk,
+    compiler::Parser,
+    hashtable::{HashKeyString, HashTable},
+    op_code::OpCode,
+    stack::Stack,
+    utils::is_falsey,
+    value::Value,
 };
 
 #[derive(Debug)]
@@ -13,6 +19,7 @@ pub struct Vm {
     chunk: Chunk,
     ip: usize,
     stack: Stack,
+    table: HashTable,
 }
 
 impl Vm {
@@ -21,6 +28,7 @@ impl Vm {
             chunk: Chunk::new(),
             ip: 0,
             stack: Stack::new(),
+            table: HashTable::new(),
         }
     }
 
@@ -126,6 +134,17 @@ impl Vm {
                 OpCode::Print => {
                     let val = self.stack.pop().expect("unable to pop value");
                     println!("Printing value of {:?}", val);
+                    result = Ok(());
+                }
+                OpCode::Global(v) => {
+                    if let Value::String(s) = &self.chunk.constants[*v] {
+                        let key = HashKeyString {
+                            value: s.clone(),
+                            hash: HashTable::hash(s),
+                        };
+                        self.table
+                            .insert(key, self.stack.pop().expect("unable to pop value"));
+                    }
                     result = Ok(());
                 }
                 _ => {
@@ -335,5 +354,29 @@ mod tests {
         vm.initialize();
         vm.stack.push(Value::String("hello".to_string()));
         assert_eq!(vm.stack.pop(), Some(Value::String("hello".to_string())));
+    }
+
+    #[test]
+    fn test_less() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.stack.push(Value::Number(1.0));
+        vm.stack.push(Value::Number(2.0));
+        vm.stack.push(Value::Number(3.0));
+
+        vm.binary_operation(OpCode::Less).unwrap();
+        assert_eq!(vm.stack.pop(), Some(Value::Bool(true)));
+    }
+
+    #[test]
+    fn test_greater() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.stack.push(Value::Number(1.0));
+        vm.stack.push(Value::Number(2.0));
+        vm.stack.push(Value::Number(3.0));
+
+        vm.binary_operation(OpCode::Greater).unwrap();
+        assert_eq!(vm.stack.pop(), Some(Value::Bool(false)));
     }
 }

@@ -12,6 +12,7 @@ impl Chunk {
     pub fn new() -> Self {
         Self {
             code: Lec::new(),
+            //TODO: use hash table to store constants?
             constants: Lec::new(),
             lines: Lec::new(),
         }
@@ -24,6 +25,7 @@ impl Chunk {
 
     pub fn push_constant(&mut self, constant: Value) -> usize {
         self.constants.push(constant);
+        // return the index of the constant
         self.constants.len() - 1
     }
 
@@ -74,6 +76,7 @@ impl Chunk {
             OpCode::Less => self.constant_instruction("Less", None, offset, *line),
             OpCode::Print => self.constant_instruction("Print", None, offset, *line),
             OpCode::Pop => self.constant_instruction("Pop", None, offset, *line),
+            OpCode::Global(v) => self.constant_instruction("Global", Some(v), offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
