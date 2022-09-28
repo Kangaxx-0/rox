@@ -186,7 +186,7 @@ impl<'bytes> Scanner<'bytes> {
         let key = String::from_utf8(identifier.to_vec()).expect("cannot get string from bytes");
         match KEYWORDS.get(&key) {
             Some(t) => self.make_token(*t),
-            None => self.make_token(TokenType::Error),
+            None => self.make_token(TokenType::Identifier),
         }
     }
 

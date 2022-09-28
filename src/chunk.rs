@@ -76,7 +76,8 @@ impl Chunk {
             OpCode::Less => self.constant_instruction("Less", None, offset, *line),
             OpCode::Print => self.constant_instruction("Print", None, offset, *line),
             OpCode::Pop => self.constant_instruction("Pop", None, offset, *line),
-            OpCode::Global(v) => self.constant_instruction("Global", Some(v), offset, *line),
+            OpCode::SetGlobal(v) => self.constant_instruction("Set Global", Some(v), offset, *line),
+            OpCode::GetGlobal(v) => self.constant_instruction("Get Global", Some(v), offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
@@ -88,7 +89,7 @@ impl Chunk {
                 let constant = &self.constants[*v];
 
                 println!(
-                    "OP CODE:{} - Line number {} - Constant pool index:{} and the value:{:?}",
+                    "OP CODE:{} - Line number {} - Constant pool index:{} and the value:{}",
                     msg, line, offset, constant
                 );
             }
