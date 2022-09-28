@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::fmt::Display;
+
 use crate::value::Value;
 
 const TABLE_MAX_LOAD: f32 = 0.75;
@@ -10,13 +12,19 @@ pub struct HashKeyString {
     pub hash: u64,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Entry {
     key: HashKeyString,
     value: Value,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+impl Display for Entry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entry {{ key: {:?}, value: {} }}", self.key, self.value)
+    }
+}
+
+#[derive(PartialEq, Clone)]
 pub struct HashTable {
     entries: Vec<Entry>,
     count: usize,
@@ -69,7 +77,7 @@ impl HashTable {
         (None, index)
     }
 
-    fn get(&self, key: &HashKeyString) -> Option<&Value> {
+    pub fn get(&self, key: &HashKeyString) -> Option<&Value> {
         if self.count == 0 {
             return None;
         }
@@ -157,7 +165,7 @@ impl HashTable {
     fn print(&self) {
         for entry in self.entries.iter() {
             if entry.value != Value::Nil {
-                println!("{:?}", entry);
+                println!("{}", entry);
             }
         }
     }
@@ -170,6 +178,12 @@ impl HashTable {
             hash = hash.wrapping_mul(0x100000001b3);
         }
         hash
+    }
+}
+
+impl Default for HashTable {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

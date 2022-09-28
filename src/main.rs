@@ -1,4 +1,8 @@
-use std::{env, io, process::exit};
+use std::{
+    env,
+    io::{self, Write},
+    process::exit,
+};
 
 use rox::vm::{InterpretError, Vm};
 
@@ -20,6 +24,8 @@ fn main() {
 
 fn repl(vm: &mut Vm) {
     loop {
+        print!("> ");
+        io::stdout().flush().expect("Can't flush stdout");
         let mut input = String::new();
         if let Err(e) = io::stdin().read_line(&mut input) {
             print!("{}", e);
@@ -28,22 +34,21 @@ fn repl(vm: &mut Vm) {
         if input.is_empty() {
             break;
         }
-        let input_bytes = input.into_bytes();
 
-        match vm.interpret(&input_bytes) {
-            Ok(_) => exit(0),
-            Err(error) => match error {
+        if let Err(e) = vm.interpret(&input) {
+            match e {
                 InterpretError::Default => exit(2),
                 InterpretError::RuntimeError => exit(70),
                 InterpretError::CompileError => exit(65),
-            },
+            }
         }
     }
 }
 
 fn run_file(vm: &mut Vm, file_name: String) {
     let content = std::fs::read(file_name).expect("Could not read file");
-    match vm.interpret(&content) {
+    let input = String::from_utf8(content).expect("Could not convert file to string");
+    match vm.interpret(&input) {
         Ok(_) => exit(0),
         Err(error) => match error {
             InterpretError::Default => exit(2),

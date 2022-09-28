@@ -36,8 +36,8 @@ impl Vm {
         self.stack.reset();
     }
 
-    pub fn interpret(&mut self, bytes: &[u8]) -> Result<(), InterpretError> {
-        let mut parser = Parser::new(bytes, &mut self.chunk);
+    pub fn interpret(&mut self, bytes: &str) -> Result<(), InterpretError> {
+        let mut parser = Parser::new(bytes.as_bytes(), &mut self.chunk);
         if !parser.compile() {
             return Err(InterpretError::CompileError);
         }
@@ -49,11 +49,9 @@ impl Vm {
         let mut result = Err(InterpretError::Default);
         loop {
             if self.ip == self.chunk.len() {
-                println!("Reaching the last instruction, exiting...");
                 break;
             }
             let chunk = &self.chunk;
-            self.print_stack();
             self.chunk.disassemble_instruction(self.ip);
             match &chunk.code[self.ip] {
                 OpCode::Return => result = Ok(()),
@@ -133,10 +131,10 @@ impl Vm {
                 }
                 OpCode::Print => {
                     let val = self.stack.pop().expect("unable to pop value");
-                    println!("Printing value of {:?}", val);
+                    println!("Printing value of {}", val);
                     result = Ok(());
                 }
-                OpCode::Global(v) => {
+                OpCode::SetGlobal(v) => {
                     if let Value::String(s) = &self.chunk.constants[*v] {
                         let key = HashKeyString {
                             value: s.clone(),
@@ -144,6 +142,21 @@ impl Vm {
                         };
                         self.table
                             .insert(key, self.stack.pop().expect("unable to pop value"));
+                    }
+                    result = Ok(());
+                }
+                OpCode::GetGlobal(v) => {
+                    if let Value::String(s) = &self.chunk.constants[*v] {
+                        let key = HashKeyString {
+                            value: s.clone(),
+                            hash: HashTable::hash(s),
+                        };
+                        if let Some(val) = self.table.get(&key) {
+                            self.stack.push(val.clone());
+                        } else {
+                            self.runtime_error(format!("undefined variable '{}'", s).as_str());
+                            return Err(InterpretError::RuntimeError);
+                        }
                     }
                     result = Ok(());
                 }
@@ -251,12 +264,6 @@ impl Vm {
                 }
             }
             _ => Err(InterpretError::RuntimeError),
-        }
-    }
-
-    fn print_stack(&self) {
-        for value in self.stack.clone() {
-            println!("[{:?}]", value);
         }
     }
 }
