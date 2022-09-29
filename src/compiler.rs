@@ -8,7 +8,7 @@ use crate::value::Value;
 //FIXME - remove dead_code
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-// Precedence symbols:
+// Precedence symbols from low to high:
 //  No -> no Precedence
 //  Assignment -> =
 //  Or -> or
@@ -53,7 +53,7 @@ impl Precedence {
     }
 }
 
-type ParseFn<'a> = fn(&mut Parser<'a>) -> ();
+type ParseFn<'a> = fn(&mut Parser<'a>, can_assign: bool) -> ();
 
 struct ParseRule<'a> {
     prefix: Option<ParseFn<'a>>,
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
         self.error_at_current(msg);
     }
 
-    fn compile_number(&mut self) {
+    fn compile_number(&mut self, _: bool) {
         let start = self.previous.start;
         let length = self.previous.length;
         let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
@@ -111,12 +111,12 @@ impl<'a> Parser<'a> {
         self.emit_constant(Value::Number(number));
     }
 
-    fn compile_grouping(&mut self) {
+    fn compile_grouping(&mut self, _: bool) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after expression");
     }
 
-    fn compile_unary(&mut self) {
+    fn compile_unary(&mut self, _: bool) {
         let operator_type = self.previous.t_type;
 
         self.parse_precedence(Precedence::Unary);
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn compile_binary(&mut self) {
+    fn compile_binary(&mut self, _: bool) {
         let operator_type = self.previous.t_type;
         let rule = self.get_rule(operator_type);
         self.parse_precedence(rule.precedence.next());
@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn compile_literal(&mut self) {
+    fn compile_literal(&mut self, _: bool) {
         match self.previous.t_type {
             TokenType::False => self.emit_byte(OpCode::False),
             TokenType::True => self.emit_byte(OpCode::True),
@@ -161,14 +161,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn compile_string(&mut self) {
+    fn compile_string(&mut self, _: bool) {
         let start = self.previous.start + 1;
         let length = self.previous.length - 2;
         let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
         self.emit_constant(Value::String(value));
     }
 
-    fn compile_print(&mut self) {
+    fn compile_print(&mut self, _: bool) {
         self.expression();
         self.consume(TokenType::Semicolon, "Expect ';' after value");
         self.emit_byte(OpCode::Print);
@@ -179,9 +179,14 @@ impl<'a> Parser<'a> {
         self.identifier_constant()
     }
 
-    fn compile_named_variable(&mut self) {
+    fn compile_named_variable(&mut self, can_assign: bool) {
         let index = self.identifier_constant();
-        self.emit_byte(OpCode::GetGlobal(index));
+        if self.match_token(TokenType::Equal) && can_assign {
+            self.expression();
+            self.emit_byte(OpCode::SetGlobal(index));
+        } else {
+            self.emit_byte(OpCode::GetGlobal(index));
+        }
     }
 
     fn identifier_constant(&mut self) -> usize {
@@ -354,13 +359,18 @@ impl<'a> Parser<'a> {
             }
         };
 
-        prefix_rule(self);
+        let can_assign = precedence <= Precedence::Assignment;
+        prefix_rule(self, can_assign);
 
         while precedence <= self.get_rule(self.current.t_type).precedence {
             self.next_valid_token();
             if let Some(infix_rule) = self.get_rule(self.previous.t_type).infix {
-                infix_rule(self);
+                infix_rule(self, can_assign);
             }
+        }
+
+        if can_assign && self.match_token(TokenType::Equal) {
+            self.error("Invalid assignment target.");
         }
     }
 
@@ -408,7 +418,7 @@ impl<'a> Parser<'a> {
 
     fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
-            self.compile_print();
+            self.compile_print(true);
         } else {
             self.expression_statement();
         }
@@ -427,7 +437,7 @@ impl<'a> Parser<'a> {
             "Expect ';' after variable declaration.",
         );
 
-        self.emit_byte(OpCode::SetGlobal(index));
+        self.emit_byte(OpCode::DefineGlobal(index));
     }
 
     fn declaration(&mut self) {
