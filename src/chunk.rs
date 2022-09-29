@@ -78,6 +78,9 @@ impl Chunk {
             OpCode::Pop => self.constant_instruction("Pop", None, offset, *line),
             OpCode::SetGlobal(v) => self.constant_instruction("Set Global", Some(v), offset, *line),
             OpCode::GetGlobal(v) => self.constant_instruction("Get Global", Some(v), offset, *line),
+            OpCode::DefineGlobal(v) => {
+                self.constant_instruction("Define Global", Some(v), offset, *line)
+            }
             _ => println!("Unknown opcode {}", instruction),
         }
     }

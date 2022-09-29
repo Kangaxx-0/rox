@@ -134,7 +134,7 @@ impl Vm {
                     println!("Printing value of {}", val);
                     result = Ok(());
                 }
-                OpCode::SetGlobal(v) => {
+                OpCode::DefineGlobal(v) => {
                     if let Value::String(s) = &self.chunk.constants[*v] {
                         let key = HashKeyString {
                             value: s.clone(),
@@ -154,6 +154,24 @@ impl Vm {
                         if let Some(val) = self.table.get(&key) {
                             self.stack.push(val.clone());
                         } else {
+                            self.runtime_error(format!("undefined variable '{}'", s).as_str());
+                            return Err(InterpretError::RuntimeError);
+                        }
+                    }
+                    result = Ok(());
+                }
+                OpCode::SetGlobal(v) => {
+                    if let Value::String(s) = &self.chunk.constants[*v] {
+                        let key = HashKeyString {
+                            value: s.clone(),
+                            hash: HashTable::hash(s),
+                        };
+                        if self.table.get(&key).is_some() {
+                            // insert would replace the value with the same key
+                            self.table
+                                .insert(key, self.stack.pop().expect("unable to pop value"));
+                        } else {
+                            // when the key does note exist in the global has table, we throw a runtime error
                             self.runtime_error(format!("undefined variable '{}'", s).as_str());
                             return Err(InterpretError::RuntimeError);
                         }
