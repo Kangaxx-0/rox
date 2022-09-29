@@ -273,9 +273,60 @@ fn rox_variable_assign2() -> TestResult {
             var a = 1;
             var b = 2;
             var c = 3;
-            var d = b + c;
+            var d = a + c;
             print d;"#,
-        "Printing value of 5",
+        "Printing value of 4",
+    )
+}
+
+#[test]
+fn rox_variable_assign_after_allocation() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = 3;
+            var d = 4;
+            var e = 5;
+            var f = 6;
+            var g = 7;
+            var h = 8;
+            var i = 9;
+            var j = 10;
+            var k = 11;
+            var l = 12;
+            var m = a+k+f;
+            print m;"#,
+        "Printing value of 18",
+    )
+}
+
+#[test]
+fn rox_variable_assign_after_allocation2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = 3;
+            var d = 4;
+            var e = 5;
+            var f = 6;
+            var g = 7;
+            var h = 8;
+            var i = 9;
+            var j = 10;
+            var k = 11;
+            var l = 12;
+            var m = a+k+f;
+            var n = m + 1;
+            var o = 13;
+            var p = 14;
+            var q = 15;
+            var r = 16;
+            var s = 17;
+            var z = b + g + m +q;
+            print z;"#,
+        "Printing value of 42",
     )
 }
 

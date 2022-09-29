@@ -126,18 +126,9 @@ impl HashTable {
         }
 
         for entry in self.entries.iter() {
-            let mut index = entry.key.hash as usize % capacity;
-
-            while index < capacity {
-                if entries
-                    .get(index)
-                    .expect("this position should be initialized")
-                    .value
-                    != Value::Nil
-                {
-                    entries[index] = entry.clone();
-                }
-                index += 1;
+            if entry.value != Value::Nil {
+                let index = entry.key.hash as usize % (capacity - 1);
+                entries[index] = entry.clone();
             }
         }
 
@@ -278,56 +269,6 @@ mod tests {
         table.insert(key, Value::Number(8.0));
         assert_eq!(table.count, 8);
         assert_eq!(table.capacity, 16);
-    }
-
-    fn test_hash_table_insert_hash_with_resize() {
-        let mut table = HashTable::new();
-        let key1 = HashKeyString {
-            value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
-        };
-        table.insert(key1.clone(), Value::Number(1.0));
-        assert_eq!(table.count, 1);
-        assert_eq!(table.capacity, 8);
-
-        let key2 = HashKeyString {
-            value: "hello2".to_string(),
-            hash: HashTable::hash("hello2"),
-        };
-        table.insert(key2, Value::Number(2.0));
-        let key3 = HashKeyString {
-            value: "hello3".to_string(),
-            hash: HashTable::hash("hello3"),
-        };
-        table.insert(key3, Value::Number(3.0));
-        let key4 = HashKeyString {
-            value: "hello4".to_string(),
-            hash: HashTable::hash("hello4"),
-        };
-        table.insert(key4, Value::Number(4.0));
-        let key5 = HashKeyString {
-            value: "hello5".to_string(),
-            hash: HashTable::hash("hello5"),
-        };
-        table.insert(key5, Value::Number(5.0));
-        let key6 = HashKeyString {
-            value: "hello6".to_string(),
-            hash: HashTable::hash("hello6"),
-        };
-        table.insert(key6, Value::Number(6.0));
-        let key7 = HashKeyString {
-            value: "hello7".to_string(),
-            hash: HashTable::hash("hello7"),
-        };
-        table.insert(key7, Value::Number(7.0));
-        let key = HashKeyString {
-            value: "hello8".to_string(),
-            hash: HashTable::hash("hello8"),
-        };
-        table.insert(key, Value::Number(8.0));
-        assert_eq!(table.count, 8);
-        assert_eq!(table.capacity, 16);
-        assert_eq!(table.get(&key1), Some(&Value::Number(1.0)));
     }
 
     #[test]
