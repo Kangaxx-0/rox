@@ -52,7 +52,9 @@ impl Vm {
                 break;
             }
             let chunk = &self.chunk;
+            // Enable this to see the chunk and stack
             self.chunk.disassemble_instruction(self.ip);
+            self.print_stack();
             match &chunk.code[self.ip] {
                 OpCode::Return => result = Ok(()),
                 OpCode::Constant(v) => {
@@ -282,6 +284,12 @@ impl Vm {
                 }
             }
             _ => Err(InterpretError::RuntimeError),
+        }
+    }
+
+    fn print_stack(&self) {
+        for value in self.stack.clone() {
+            println!("[{}]", value);
         }
     }
 }

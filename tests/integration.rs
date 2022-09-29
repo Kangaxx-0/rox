@@ -266,17 +266,18 @@ fn rox_variable_assign() -> TestResult {
     )
 }
 
-// #[test]
-// fn rox_variable_assign2() -> TestResult {
-//     run_test_contains(
-//         r#"
-//             var a = 1;
-//             var b = 2;
-//             var c = a + b;
-//             print c;"#,
-//         "Printing value of 3",
-//     )
-// }
+#[test]
+fn rox_variable_assign2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = 3;
+            var d = b + c;
+            print d;"#,
+        "Printing value of 5",
+    )
+}
 
 // #[test]
 // fn rox_variable_assign_complex() -> TestResult {
