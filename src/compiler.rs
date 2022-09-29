@@ -196,11 +196,7 @@ impl<'a> Parser<'a> {
             self.previous.start + self.previous.length,
         );
 
-        let index = self.chunk.push_constant(Value::String(identifier));
-
-        self.emit_byte(OpCode::Constant(index));
-
-        index
+        self.chunk.push_constant(Value::String(identifier))
     }
 
     fn emit_constant(&mut self, number: Value) {
@@ -213,7 +209,7 @@ impl<'a> Parser<'a> {
         self.emit_return();
 
         if !self.had_error {
-            self.chunk.disassemble_chunk("code");
+            // self.chunk.disassemble_chunk("code");
         }
     }
 
@@ -402,8 +398,8 @@ impl<'a> Parser<'a> {
         self.current.t_type == t
     }
 
-    fn match_token(&mut self, print: TokenType) -> bool {
-        if !self.check(print) {
+    fn match_token(&mut self, token_type: TokenType) -> bool {
+        if !self.check(token_type) {
             return false;
         }
         self.next_valid_token();
@@ -577,6 +573,7 @@ mod tests {
         let mut parser = Parser::new(source, &mut chunk);
         assert!(parser.compile());
         assert_eq!(2, chunk.constants.len());
-        assert_eq!(4, chunk.code.len());
+        // Constant, DefineGlobal,Return
+        assert_eq!(3, chunk.code.len());
     }
 }

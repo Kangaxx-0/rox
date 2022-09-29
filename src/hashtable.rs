@@ -51,8 +51,9 @@ impl HashTable {
                 self.entries[index].value = value;
             }
             (None, index) => {
-                let element = Entry { key, value };
-                self.entries.insert(index, element);
+                let mut element = Entry { key, value };
+                // We want to replace the value, but keep the vec capacity the same.
+                std::mem::swap(&mut self.entries[index], &mut element);
                 self.count += 1;
             }
         }
