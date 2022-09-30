@@ -8,7 +8,7 @@ use crate::value::Value;
 //FIXME - remove dead_code
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-// Precedence symbols:
+// Precedence symbols from low to high:
 //  No -> no Precedence
 //  Assignment -> =
 //  Or -> or
@@ -53,7 +53,7 @@ impl Precedence {
     }
 }
 
-type ParseFn<'a> = fn(&mut Parser<'a>) -> ();
+type ParseFn<'a> = fn(&mut Parser<'a>, can_assign: bool) -> ();
 
 struct ParseRule<'a> {
     prefix: Option<ParseFn<'a>>,
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
         self.error_at_current(msg);
     }
 
-    fn compile_number(&mut self) {
+    fn compile_number(&mut self, _: bool) {
         let start = self.previous.start;
         let length = self.previous.length;
         let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
@@ -111,12 +111,12 @@ impl<'a> Parser<'a> {
         self.emit_constant(Value::Number(number));
     }
 
-    fn compile_grouping(&mut self) {
+    fn compile_grouping(&mut self, _: bool) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after expression");
     }
 
-    fn compile_unary(&mut self) {
+    fn compile_unary(&mut self, _: bool) {
         let operator_type = self.previous.t_type;
 
         self.parse_precedence(Precedence::Unary);
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn compile_binary(&mut self) {
+    fn compile_binary(&mut self, _: bool) {
         let operator_type = self.previous.t_type;
         let rule = self.get_rule(operator_type);
         self.parse_precedence(rule.precedence.next());
@@ -143,16 +143,16 @@ impl<'a> Parser<'a> {
             TokenType::Star => self.emit_byte(OpCode::Multiply),
             TokenType::Slash => self.emit_byte(OpCode::Divide),
             TokenType::EqualEqual => self.emit_byte(OpCode::Equal),
-            TokenType::BangEqual => self.emit_byte_two(OpCode::Equal, OpCode::Not),
+            TokenType::BangEqual => self.emit_two_bytes(OpCode::Equal, OpCode::Not),
             TokenType::Greater => self.emit_byte(OpCode::Greater),
-            TokenType::GreaterEqual => self.emit_byte_two(OpCode::Less, OpCode::Not),
+            TokenType::GreaterEqual => self.emit_two_bytes(OpCode::Less, OpCode::Not),
             TokenType::Less => self.emit_byte(OpCode::Less),
-            TokenType::LessEqual => self.emit_byte_two(OpCode::Greater, OpCode::Not),
+            TokenType::LessEqual => self.emit_two_bytes(OpCode::Greater, OpCode::Not),
             _ => unreachable!("{:?}", operator_type),
         }
     }
 
-    fn compile_literal(&mut self) {
+    fn compile_literal(&mut self, _: bool) {
         match self.previous.t_type {
             TokenType::False => self.emit_byte(OpCode::False),
             TokenType::True => self.emit_byte(OpCode::True),
@@ -161,17 +161,42 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn compile_string(&mut self) {
+    fn compile_string(&mut self, _: bool) {
         let start = self.previous.start + 1;
         let length = self.previous.length - 2;
         let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
         self.emit_constant(Value::String(value));
     }
 
-    fn compile_print(&mut self) {
+    fn compile_print(&mut self, _: bool) {
         self.expression();
         self.consume(TokenType::Semicolon, "Expect ';' after value");
         self.emit_byte(OpCode::Print);
+    }
+
+    fn variable_declare(&mut self, msg: &str) -> usize {
+        self.consume(TokenType::Identifier, msg);
+        self.identifier_constant()
+    }
+
+    fn compile_named_variable(&mut self, can_assign: bool) {
+        let index = self.identifier_constant();
+        if self.match_token(TokenType::Equal) && can_assign {
+            self.expression();
+            self.emit_byte(OpCode::SetGlobal(index));
+        } else {
+            self.emit_byte(OpCode::GetGlobal(index));
+        }
+    }
+
+    fn identifier_constant(&mut self) -> usize {
+        let identifier = convert_slice_to_string(
+            self.scanner.bytes,
+            self.previous.start,
+            self.previous.start + self.previous.length,
+        );
+
+        self.chunk.push_constant(Value::String(identifier))
     }
 
     fn emit_constant(&mut self, number: Value) {
@@ -184,7 +209,7 @@ impl<'a> Parser<'a> {
         self.emit_return();
 
         if !self.had_error {
-            self.chunk.disassemble_chunk("code");
+            // self.chunk.disassemble_chunk("code");
         }
     }
 
@@ -196,7 +221,7 @@ impl<'a> Parser<'a> {
         self.chunk.write_to_chunk(code, self.previous.line);
     }
 
-    fn emit_byte_two(&mut self, code1: OpCode, code2: OpCode) {
+    fn emit_two_bytes(&mut self, code1: OpCode, code2: OpCode) {
         self.emit_byte(code1);
         self.emit_byte(code2);
     }
@@ -306,6 +331,11 @@ impl<'a> Parser<'a> {
                 infix: None,
                 precedence: Precedence::No,
             },
+            TokenType::Identifier => ParseRule {
+                prefix: Some(Parser::compile_named_variable),
+                infix: None,
+                precedence: Precedence::No,
+            },
             _ => ParseRule {
                 prefix: None,
                 infix: None,
@@ -325,39 +355,18 @@ impl<'a> Parser<'a> {
             }
         };
 
-        prefix_rule(self);
+        let can_assign = precedence <= Precedence::Assignment;
+        prefix_rule(self, can_assign);
 
         while precedence <= self.get_rule(self.current.t_type).precedence {
             self.next_valid_token();
             if let Some(infix_rule) = self.get_rule(self.previous.t_type).infix {
-                infix_rule(self);
+                infix_rule(self, can_assign);
             }
         }
-    }
 
-    fn check(&mut self, t: TokenType) -> bool {
-        self.current.t_type == t
-    }
-
-    fn match_token(&mut self, print: TokenType) -> bool {
-        if !self.check(print) {
-            return false;
-        }
-        self.next_valid_token();
-        true
-    }
-
-    fn expression_statement(&mut self) {
-        self.expression();
-        self.consume(TokenType::Semicolon, "Expect ';' after expression.");
-        self.emit_byte(OpCode::Pop);
-    }
-
-    fn statement(&mut self) {
-        if self.match_token(TokenType::Print) {
-            self.compile_print();
-        } else {
-            self.expression_statement();
+        if can_assign && self.match_token(TokenType::Equal) {
+            self.error("Invalid assignment target.");
         }
     }
 
@@ -385,8 +394,54 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn check(&mut self, t: TokenType) -> bool {
+        self.current.t_type == t
+    }
+
+    fn match_token(&mut self, token_type: TokenType) -> bool {
+        if !self.check(token_type) {
+            return false;
+        }
+        self.next_valid_token();
+        true
+    }
+
+    fn expression_statement(&mut self) {
+        self.expression();
+        self.consume(TokenType::Semicolon, "Expect ';' after expression.");
+        self.emit_byte(OpCode::Pop);
+    }
+
+    fn statement(&mut self) {
+        if self.match_token(TokenType::Print) {
+            self.compile_print(true);
+        } else {
+            self.expression_statement();
+        }
+    }
+
+    fn variable_declaration(&mut self) {
+        let index = self.variable_declare("Expect variable name.");
+        if self.match_token(TokenType::Equal) {
+            self.expression();
+        } else {
+            self.emit_byte(OpCode::Nil);
+        }
+
+        self.consume(
+            TokenType::Semicolon,
+            "Expect ';' after variable declaration.",
+        );
+
+        self.emit_byte(OpCode::DefineGlobal(index));
+    }
+
     fn declaration(&mut self) {
-        self.statement();
+        if self.match_token(TokenType::Var) {
+            self.variable_declaration();
+        } else {
+            self.statement();
+        }
 
         if self.panic_mode {
             self.synchronize();
@@ -509,5 +564,16 @@ mod tests {
         let mut parser = Parser::new(source, &mut chunk);
         assert!(!parser.compile());
         assert!(parser.had_error);
+    }
+
+    #[test]
+    fn test_global() {
+        let source = r#"var a = 1;"#.as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert!(parser.compile());
+        assert_eq!(2, chunk.constants.len());
+        // Constant, DefineGlobal,Return
+        assert_eq!(3, chunk.code.len());
     }
 }

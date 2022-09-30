@@ -143,3 +143,14 @@ enum Precedence {
 
 Rox的值类型充分利用了Rust里的`Enum`,所以当你阅读原书发现里面大量的C代码被抛弃， 不要感到惊讶
 > The Rox value types are fully leveraging the power of Rust `Enum`, do not be suprsied when you saw lots of C code from the book gets ditched in Rox
+
+# 6.字符串
+> # 6.Strings
+
+TBD
+
+# 7.哈希表
+> # 7.Hash Tables
+
+在我们哈希表实现中，在已知不会超过阈值得情况下，我们不希望在插入新值时变化内部Vec的容量，所以我们使用`std::mem::swap`
+> If we know new insertion won't exceed the threadhold value we setup, thus, we do not expect to update internal `Vec`'s capacity, this is why we choose `std::mem::swap`

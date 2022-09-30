@@ -1,5 +1,11 @@
 use crate::{
-    chunk::Chunk, compiler::Parser, op_code::OpCode, stack::Stack, utils::is_falsey, value::Value,
+    chunk::Chunk,
+    compiler::Parser,
+    hashtable::{HashKeyString, HashTable},
+    op_code::OpCode,
+    stack::Stack,
+    utils::is_falsey,
+    value::Value,
 };
 
 #[derive(Debug)]
@@ -13,6 +19,7 @@ pub struct Vm {
     chunk: Chunk,
     ip: usize,
     stack: Stack,
+    table: HashTable,
 }
 
 impl Vm {
@@ -21,6 +28,7 @@ impl Vm {
             chunk: Chunk::new(),
             ip: 0,
             stack: Stack::new(),
+            table: HashTable::new(),
         }
     }
 
@@ -28,8 +36,8 @@ impl Vm {
         self.stack.reset();
     }
 
-    pub fn interpret(&mut self, bytes: &[u8]) -> Result<(), InterpretError> {
-        let mut parser = Parser::new(bytes, &mut self.chunk);
+    pub fn interpret(&mut self, bytes: &str) -> Result<(), InterpretError> {
+        let mut parser = Parser::new(bytes.as_bytes(), &mut self.chunk);
         if !parser.compile() {
             return Err(InterpretError::CompileError);
         }
@@ -41,12 +49,12 @@ impl Vm {
         let mut result = Err(InterpretError::Default);
         loop {
             if self.ip == self.chunk.len() {
-                println!("Reaching the last instruction, exiting...");
                 break;
             }
             let chunk = &self.chunk;
-            self.print_stack();
+            // Enable this to see the chunk and stack
             self.chunk.disassemble_instruction(self.ip);
+            self.print_stack();
             match &chunk.code[self.ip] {
                 OpCode::Return => result = Ok(()),
                 OpCode::Constant(v) => {
@@ -125,7 +133,51 @@ impl Vm {
                 }
                 OpCode::Print => {
                     let val = self.stack.pop().expect("unable to pop value");
-                    println!("Printing value of {:?}", val);
+                    println!("Printing value of {}", val);
+                    result = Ok(());
+                }
+                OpCode::DefineGlobal(v) => {
+                    if let Value::String(s) = &self.chunk.constants[*v] {
+                        let key = HashKeyString {
+                            value: s.clone(),
+                            hash: HashTable::hash(s),
+                        };
+                        self.table
+                            .insert(key, self.stack.pop().expect("unable to pop value"));
+                    }
+                    result = Ok(());
+                }
+                OpCode::GetGlobal(v) => {
+                    if let Value::String(s) = &self.chunk.constants[*v] {
+                        let key = HashKeyString {
+                            value: s.clone(),
+                            hash: HashTable::hash(s),
+                        };
+                        if let Some(val) = self.table.get(&key) {
+                            self.stack.push(val.clone());
+                        } else {
+                            self.runtime_error(format!("undefined variable '{}'", s).as_str());
+                            return Err(InterpretError::RuntimeError);
+                        }
+                    }
+                    result = Ok(());
+                }
+                OpCode::SetGlobal(v) => {
+                    if let Value::String(s) = &self.chunk.constants[*v] {
+                        let key = HashKeyString {
+                            value: s.clone(),
+                            hash: HashTable::hash(s),
+                        };
+                        if self.table.get(&key).is_some() {
+                            // insert would replace the value with the same key
+                            self.table
+                                .insert(key, self.stack.pop().expect("unable to pop value"));
+                        } else {
+                            // when the key does note exist in the global has table, we throw a runtime error
+                            self.runtime_error(format!("undefined variable '{}'", s).as_str());
+                            return Err(InterpretError::RuntimeError);
+                        }
+                    }
                     result = Ok(());
                 }
                 _ => {
@@ -237,7 +289,7 @@ impl Vm {
 
     fn print_stack(&self) {
         for value in self.stack.clone() {
-            println!("[{:?}]", value);
+            println!("[{}]", value);
         }
     }
 }
@@ -335,5 +387,29 @@ mod tests {
         vm.initialize();
         vm.stack.push(Value::String("hello".to_string()));
         assert_eq!(vm.stack.pop(), Some(Value::String("hello".to_string())));
+    }
+
+    #[test]
+    fn test_less() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.stack.push(Value::Number(1.0));
+        vm.stack.push(Value::Number(2.0));
+        vm.stack.push(Value::Number(3.0));
+
+        vm.binary_operation(OpCode::Less).unwrap();
+        assert_eq!(vm.stack.pop(), Some(Value::Bool(true)));
+    }
+
+    #[test]
+    fn test_greater() {
+        let mut vm = Vm::new();
+        vm.initialize();
+        vm.stack.push(Value::Number(1.0));
+        vm.stack.push(Value::Number(2.0));
+        vm.stack.push(Value::Number(3.0));
+
+        vm.binary_operation(OpCode::Greater).unwrap();
+        assert_eq!(vm.stack.pop(), Some(Value::Bool(false)));
     }
 }

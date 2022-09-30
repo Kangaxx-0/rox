@@ -1,22 +1,30 @@
 #![allow(dead_code)]
 
+use std::fmt::Display;
+
 use crate::value::Value;
 
 const TABLE_MAX_LOAD: f32 = 0.75;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct HashKeyString {
-    value: String,
-    hash: u64,
+    pub value: String,
+    pub hash: u64,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Entry {
     key: HashKeyString,
     value: Value,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+impl Display for Entry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entry {{ key: {:?}, value: {} }}", self.key, self.value)
+    }
+}
+
+#[derive(PartialEq, Clone)]
 pub struct HashTable {
     entries: Vec<Entry>,
     count: usize,
@@ -24,7 +32,7 @@ pub struct HashTable {
 }
 
 impl HashTable {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             entries: Vec::new(),
             count: 0,
@@ -32,7 +40,7 @@ impl HashTable {
         }
     }
 
-    fn insert(&mut self, key: HashKeyString, value: Value) {
+    pub fn insert(&mut self, key: HashKeyString, value: Value) {
         let threshold = (self.capacity as f32 * TABLE_MAX_LOAD) as usize;
         if self.count + 1 > threshold {
             let capaicty = self.grow_capacity();
@@ -43,8 +51,9 @@ impl HashTable {
                 self.entries[index].value = value;
             }
             (None, index) => {
-                let element = Entry { key, value };
-                self.entries.insert(index, element);
+                let mut element = Entry { key, value };
+                // We want to replace the value, but keep the vec capacity the same.
+                std::mem::swap(&mut self.entries[index], &mut element);
                 self.count += 1;
             }
         }
@@ -69,7 +78,7 @@ impl HashTable {
         (None, index)
     }
 
-    fn get(&self, key: &HashKeyString) -> Option<&Value> {
+    pub fn get(&self, key: &HashKeyString) -> Option<&Value> {
         if self.count == 0 {
             return None;
         }
@@ -117,18 +126,9 @@ impl HashTable {
         }
 
         for entry in self.entries.iter() {
-            let mut index = entry.key.hash as usize % capacity;
-
-            while index < capacity {
-                if entries
-                    .get(index)
-                    .expect("this position should be initialized")
-                    .value
-                    != Value::Nil
-                {
-                    entries[index] = entry.clone();
-                }
-                index += 1;
+            if entry.value != Value::Nil {
+                let index = entry.key.hash as usize % (capacity - 1);
+                entries[index] = entry.clone();
             }
         }
 
@@ -136,19 +136,19 @@ impl HashTable {
         self.capacity = capacity;
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.count == 0
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.count
     }
 
-    fn capacity(&self) -> usize {
+    pub fn capacity(&self) -> usize {
         self.capacity
     }
 
-    fn remove_all(&mut self) {
+    pub fn remove_all(&mut self) {
         self.entries.clear();
         self.count = 0;
         self.capacity = 0;
@@ -157,12 +157,12 @@ impl HashTable {
     fn print(&self) {
         for entry in self.entries.iter() {
             if entry.value != Value::Nil {
-                println!("{:?}", entry);
+                println!("{}", entry);
             }
         }
     }
 
-    fn hash(key: &str) -> u64 {
+    pub fn hash(key: &str) -> u64 {
         let mut hash = 0xcbf29ce484222325;
 
         for c in key.as_bytes() {
@@ -170,6 +170,12 @@ impl HashTable {
             hash = hash.wrapping_mul(0x100000001b3);
         }
         hash
+    }
+}
+
+impl Default for HashTable {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -263,56 +269,6 @@ mod tests {
         table.insert(key, Value::Number(8.0));
         assert_eq!(table.count, 8);
         assert_eq!(table.capacity, 16);
-    }
-
-    fn test_hash_table_insert_hash_with_resize() {
-        let mut table = HashTable::new();
-        let key1 = HashKeyString {
-            value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
-        };
-        table.insert(key1.clone(), Value::Number(1.0));
-        assert_eq!(table.count, 1);
-        assert_eq!(table.capacity, 8);
-
-        let key2 = HashKeyString {
-            value: "hello2".to_string(),
-            hash: HashTable::hash("hello2"),
-        };
-        table.insert(key2, Value::Number(2.0));
-        let key3 = HashKeyString {
-            value: "hello3".to_string(),
-            hash: HashTable::hash("hello3"),
-        };
-        table.insert(key3, Value::Number(3.0));
-        let key4 = HashKeyString {
-            value: "hello4".to_string(),
-            hash: HashTable::hash("hello4"),
-        };
-        table.insert(key4, Value::Number(4.0));
-        let key5 = HashKeyString {
-            value: "hello5".to_string(),
-            hash: HashTable::hash("hello5"),
-        };
-        table.insert(key5, Value::Number(5.0));
-        let key6 = HashKeyString {
-            value: "hello6".to_string(),
-            hash: HashTable::hash("hello6"),
-        };
-        table.insert(key6, Value::Number(6.0));
-        let key7 = HashKeyString {
-            value: "hello7".to_string(),
-            hash: HashTable::hash("hello7"),
-        };
-        table.insert(key7, Value::Number(7.0));
-        let key = HashKeyString {
-            value: "hello8".to_string(),
-            hash: HashTable::hash("hello8"),
-        };
-        table.insert(key, Value::Number(8.0));
-        assert_eq!(table.count, 8);
-        assert_eq!(table.capacity, 16);
-        assert_eq!(table.get(&key1), Some(&Value::Number(1.0)));
     }
 
     #[test]

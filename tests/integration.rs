@@ -56,124 +56,124 @@ pub fn fail_test(input: &str, expected: &str) -> TestResult {
 }
 #[test]
 fn rox_constant_number() -> TestResult {
-    run_test_contains("1;", "Number(1.0)")
+    run_test_contains("print 1;", "1")
 }
 
 #[test]
 fn rox_arithmetic_plus() -> TestResult {
-    run_test_contains("1+2;", "Number(3.0)")
+    run_test_contains("print 1+2;", "3")
 }
 
 #[test]
 fn rox_arithmetic_minus() -> TestResult {
-    run_test_contains("1-2;", "Number(-1.0)")
+    run_test_contains("print 1-2;", "-1")
 }
 
 #[test]
 fn rox_arithmetic_multiply() -> TestResult {
-    run_test_contains("2*2;", "Number(4.0)")
+    run_test_contains("print 2*2;", "4")
 }
 
 #[test]
 fn rox_arithmetic_negative() -> TestResult {
-    run_test_contains("-2;", "Number(-2.0)")
+    run_test_contains("print -2;", "-2")
 }
 #[test]
 fn rox_arithmetic_grouping() -> TestResult {
-    run_test_contains("(1+2)*3;", "Number(9.0)")
+    run_test_contains("print (1+2)*3;", "9")
 }
 
 #[test]
 fn rox_arithmetic_complex_grouping() -> TestResult {
-    run_test_contains("-((1+2)*2);", "Number(-6.0)")
+    run_test_contains("print -((1+2)*2);", "-6")
 }
 
 #[test]
 fn rox_false() -> TestResult {
-    run_test_contains("false;", "Bool(false)")
+    run_test_contains("print false;", "false")
 }
 
 #[test]
 fn rox_true() -> TestResult {
-    run_test_contains("true;", "Bool(true)")
+    run_test_contains("print true;", "true")
 }
 
 #[test]
 fn rox_falsey_false() -> TestResult {
-    run_test_contains("!false;", "Bool(true)")
+    run_test_contains("print !false;", "true")
 }
 
 #[test]
 fn rox_falsey_true() -> TestResult {
-    run_test_contains("!true;", "Bool(false)")
+    run_test_contains("print !true;", "false")
 }
 
 #[test]
 fn rox_greater_true() -> TestResult {
-    run_test_contains("2 > 1;", "Bool(true)")
+    run_test_contains("print 2 > 1;", "true")
 }
 
 #[test]
 fn rox_bang_bang() -> TestResult {
-    run_test_contains("1 != 2;", "Bool(true)")
+    run_test_contains("print 1 != 2;", "true")
 }
 #[test]
 fn rox_greater_false() -> TestResult {
-    run_test_contains("1 > 2;", "Bool(false)")
+    run_test_contains("print 1 > 2;", "false")
 }
 
 #[test]
 fn rox_greater_equal_true() -> TestResult {
-    run_test_contains("2 >= 2;", "Bool(true)")
+    run_test_contains("print 2 >= 2;", "true")
 }
 
 #[test]
 fn rox_greater_equal_true2() -> TestResult {
-    run_test_contains("2 > 1;", "Bool(true)")
+    run_test_contains("print 2 > 1;", "true")
 }
 
 #[test]
 fn rox_less_equal_true() -> TestResult {
-    run_test_contains("1 <= 2;", "Bool(true)")
+    run_test_contains("print 1 <= 2;", "true")
 }
 
 #[test]
 fn rox_less_equal_true2() -> TestResult {
-    run_test_contains("2 <= 2;", "Bool(true)")
+    run_test_contains("print 2 <= 2;", "true")
 }
 
 #[test]
 fn rox_less_false() -> TestResult {
-    run_test_contains("2 < 1;", "Bool(false)")
+    run_test_contains("print 2 < 1;", "false")
 }
 
 #[test]
 fn rox_compare_equal() -> TestResult {
-    run_test_contains("(1 == 1) == true;", "Bool(true)")
+    run_test_contains("print (1 == 1) == true;", "true")
 }
 
 #[test]
 fn rox_compare_group_equal() -> TestResult {
-    run_test_contains("(1 == 1) == (2 == 2);", "Bool(true)")
+    run_test_contains("print (1 == 1) == (2 == 2);", "true")
 }
 
 #[test]
 fn rox_nil() -> TestResult {
-    run_test_contains("nil;", "Nil")
+    run_test_contains("print nil;", "Nil")
 }
 #[test]
 fn rox_nagative_string() -> TestResult {
-    fail_test("-a;", "unknown type found")
+    fail_test("print -a;", "undefined variable 'a'")
 }
 
 #[test]
 fn rox_string() -> TestResult {
-    run_test_contains("\"a\";", "String(\"a\")")
+    run_test_contains("print \"a\";", "a")
 }
 
 #[test]
 fn rox_string_concate() -> TestResult {
-    run_test_contains(r#" "a" + "b" ;"#, r#"String("ab")"#)
+    run_test_contains(r#"print "a" + "b";"#, "Printing value of ab")
 }
 
 #[test]
@@ -215,9 +215,131 @@ fn rox_subtract_failed() -> TestResult {
 fn rox_divided_failed() -> TestResult {
     fail_test(r#"1 / "a";"#, "operands must be two numbers")
 }
-//FIXME - this test is failing
 #[test]
-#[ignore = "This test is failing"]
 fn rox_falsey_nil() -> TestResult {
-    run_test_contains("!nil;", "Bool(true)")
+    run_test_contains("print !nil;", "true")
 }
+
+#[test]
+fn rox_falsey_nil2() -> TestResult {
+    run_test_contains("print nil == nil;", "true")
+}
+
+#[test]
+fn rox_falsey_nil3() -> TestResult {
+    run_test_contains("print nil != nil;", "false")
+}
+
+#[test]
+fn rox_variable() -> TestResult {
+    run_test_contains("var a = 1;", "1")
+}
+
+#[test]
+fn rox_variable2() -> TestResult {
+    run_test_contains(
+        r#"var a = 1 + 1; 
+        print a;"#,
+        "Printing value of 2",
+    )
+}
+
+#[test]
+fn rox_variable3() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1 + 1; 
+            var b = a + 1; 
+            print b;"#,
+        "Printing value of 3",
+    )
+}
+
+#[test]
+fn rox_variable_assign() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1 + 1; 
+            var a = 3;
+            print a;"#,
+        "Printing value of 3",
+    )
+}
+
+#[test]
+fn rox_variable_assign2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = 3;
+            var d = a + c;
+            print d;"#,
+        "Printing value of 4",
+    )
+}
+
+#[test]
+fn rox_variable_assign_after_allocation() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = 3;
+            var d = 4;
+            var e = 5;
+            var f = 6;
+            var g = 7;
+            var h = 8;
+            var i = 9;
+            var j = 10;
+            var k = 11;
+            var l = 12;
+            var m = a+k+f;
+            print m;"#,
+        "Printing value of 18",
+    )
+}
+
+#[test]
+fn rox_variable_assign_after_allocation2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = 3;
+            var d = 4;
+            var e = 5;
+            var f = 6;
+            var g = 7;
+            var h = 8;
+            var i = 9;
+            var j = 10;
+            var k = 11;
+            var l = 12;
+            var m = a+k+f;
+            var n = m + 1;
+            var o = 13;
+            var p = 14;
+            var q = 15;
+            var r = 16;
+            var s = 17;
+            var z = b + g + m +q;
+            print z;"#,
+        "Printing value of 42",
+    )
+}
+
+// #[test]
+// fn rox_variable_assign_complex() -> TestResult {
+//     run_test_contains(
+//         r#"
+//             var a = 2;
+//             var b = 3;
+//             var c = 4;
+//             var d = 5;
+//
+//             a*b=c+d; "#,
+//         "Printing value of 18",
+//     )
+// }
