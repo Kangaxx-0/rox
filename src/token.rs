@@ -57,3 +57,14 @@ pub struct Token {
     pub length: usize,
     pub line: usize,
 }
+
+impl Default for Token {
+    fn default() -> Self {
+        Self {
+            t_type: TokenType::Eof,
+            start: 0,
+            length: 0,
+            line: 0,
+        }
+    }
+}

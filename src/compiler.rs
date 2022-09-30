@@ -5,6 +5,8 @@ use crate::token::{Token, TokenType};
 use crate::utils::convert_slice_to_string;
 use crate::value::Value;
 
+const LENGTH: usize = 256;
+
 //FIXME - remove dead_code
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -63,6 +65,7 @@ struct ParseRule<'a> {
 
 pub struct Parser<'a> {
     scanner: Scanner<'a>,
+    compiler: Compiler<'a>,
     chunk: &'a mut Chunk,
     current: Token,
     previous: Token,
@@ -74,6 +77,7 @@ impl<'a> Parser<'a> {
     pub fn new(source: &'a [u8], chunk: &'a mut Chunk) -> Self {
         Self {
             scanner: Scanner::new(source),
+            compiler: Compiler::new(),
             chunk,
             current: Token {
                 t_type: TokenType::Nil,
@@ -415,9 +419,29 @@ impl<'a> Parser<'a> {
     fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
             self.compile_print(true);
+        } else if self.match_token(TokenType::LeftBrace) {
+            self.begin_scope();
+            self.block();
+            self.end_scope();
         } else {
             self.expression_statement();
         }
+    }
+
+    fn block(&mut self) {
+        while !self.check(TokenType::RightBrace) && !self.check(TokenType::Eof) {
+            self.declaration();
+        }
+
+        self.consume(TokenType::RightBrace, "Expect '}' after block.");
+    }
+
+    fn begin_scope(&mut self) {
+        self.compiler.scope_depth += 1;
+    }
+
+    fn end_scope(&mut self) {
+        self.compiler.scope_depth -= 1;
     }
 
     fn variable_declaration(&mut self) {
@@ -458,6 +482,36 @@ impl<'a> Parser<'a> {
         self.consume(TokenType::Eof, "Expect end of expression.");
         self.end_compiler();
         !self.had_error
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Local {
+    name: Token,
+    depth: usize,
+}
+
+pub struct Compiler<'a> {
+    pub locals: &'a [Local],
+    pub scope_depth: usize,
+    pub local_count: usize,
+}
+
+impl<'a> Compiler<'a> {
+    pub fn new() -> Self {
+        Self {
+            locals: &[Local {
+                name: Token {
+                    t_type: TokenType::Eof,
+                    start: 0,
+                    length: 0,
+                    line: 0,
+                },
+                depth: 0,
+            }; LENGTH],
+            scope_depth: 0,
+            local_count: 0,
+        }
     }
 }
 
