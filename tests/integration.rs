@@ -330,6 +330,77 @@ fn rox_variable_assign_after_allocation2() -> TestResult {
     )
 }
 
+#[test]
+fn rox_variable_assign_after_allocation3() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = 3;
+            var d = 4;
+            var e = 5;
+            var f = 6;
+            var g = 7;
+            var h = 8;
+            var i = 9;
+            var j = 10;
+            var k = 11;
+            var l = 12;
+            var m = a+k+f;
+            var n = m + 1;
+            var o = 13;
+            var p = 14;
+            var q = 15;
+            var r = 16;
+            var s = 17;
+            var z = b + g + m +q;
+            var x = z + 1;
+            var y = 18;
+            var w = 19;
+            var v = 20;
+            var u = 21;
+            var t = 22;
+            var ss = 23;
+            var zz = 24;
+            var xx = 25;
+            var yy = 26;
+            var ww = 27;
+            var vv = 28;
+            var uu = 29;
+            var tt = 30;
+            var sss = 31;
+            var zzz = 32;
+            var xxx = 33;
+            var yyy = 34;
+            var www = 35;
+            var vvv = 36;
+            var uuu = 37;
+            var ttt = 38;
+            var ssss = 39;
+            var zzzz = 40;
+            var xxxx = 41;
+            var yyyy = 42;
+            var wwww = 43;
+            var vvvv = 44;
+            var uuuu = 45;
+            var tttt = 46;
+            var sssss = 47;
+            var zzzzz = 48;
+            var xxxxx = 49;
+            var yyyyy = 50;
+            var wwwww = 51;
+            var vvvvv = 52;
+            var uuuuu = 53;
+            var ttttt = 54;
+            var ssssss = 55;
+            var zzzzzz = 56;
+            var xxxxxx = 57;
+            var yyyyyy = a + xxxxxx;
+            print yyyyyy;"#,
+        "Printing value of 58",
+    )
+}
+
 // #[test]
 // fn rox_variable_assign_complex() -> TestResult {
 //     run_test_contains(
