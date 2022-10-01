@@ -323,4 +323,82 @@ mod tests {
         let mut scanner = Scanner::new("nil".as_bytes());
         assert_eq!(TokenType::Nil, scanner.scan_token().t_type);
     }
+
+    #[test]
+    fn test_and() {
+        let mut scanner = Scanner::new("and".as_bytes());
+        assert_eq!(TokenType::And, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_or() {
+        let mut scanner = Scanner::new("or".as_bytes());
+        assert_eq!(TokenType::Or, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_not() {
+        let mut scanner = Scanner::new("!".as_bytes());
+        assert_eq!(TokenType::Bang, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_equal() {
+        let mut scanner = Scanner::new("==".as_bytes());
+        assert_eq!(TokenType::EqualEqual, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_not_equal() {
+        let mut scanner = Scanner::new("!=".as_bytes());
+        assert_eq!(TokenType::BangEqual, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_less() {
+        let mut scanner = Scanner::new("<".as_bytes());
+        assert_eq!(TokenType::Less, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_less_equal() {
+        let mut scanner = Scanner::new("<=".as_bytes());
+        assert_eq!(TokenType::LessEqual, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_greater() {
+        let mut scanner = Scanner::new(">".as_bytes());
+        assert_eq!(TokenType::Greater, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_greater_equal() {
+        let mut scanner = Scanner::new(">=".as_bytes());
+        assert_eq!(TokenType::GreaterEqual, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_left_paren() {
+        let mut scanner = Scanner::new("(".as_bytes());
+        assert_eq!(TokenType::LeftParen, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_right_paren() {
+        let mut scanner = Scanner::new(")".as_bytes());
+        assert_eq!(TokenType::RightParen, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_left_brace() {
+        let mut scanner = Scanner::new("{".as_bytes());
+        assert_eq!(TokenType::LeftBrace, scanner.scan_token().t_type);
+    }
+
+    #[test]
+    fn test_right_brace() {
+        let mut scanner = Scanner::new("}".as_bytes());
+        assert_eq!(TokenType::RightBrace, scanner.scan_token().t_type);
+    }
 }
