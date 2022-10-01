@@ -329,4 +329,25 @@ mod tests {
         assert_eq!(table.count, 0);
         assert_eq!(table.capacity, 8);
     }
+
+    #[test]
+    fn test_hash_table_remove_not_found() {
+        let mut table = HashTable::new();
+        let key = HashKeyString {
+            value: "hello".to_string(),
+            hash: HashTable::hash("hello"),
+        };
+        table.insert(key, Value::Number(1.0));
+        assert_eq!(table.count, 1);
+        assert_eq!(table.capacity, 8);
+
+        let key = HashKeyString {
+            value: "hello2".to_string(),
+            hash: HashTable::hash("hello2"),
+        };
+        let value = table.remove(&key);
+        assert_eq!(value, None);
+        assert_eq!(table.count, 1);
+        assert_eq!(table.capacity, 8);
+    }
 }
