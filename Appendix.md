@@ -154,3 +154,14 @@ TBD
 
 在我们哈希表实现中，在已知不会超过阈值得情况下，我们不希望在插入新值时变化内部Vec的容量，所以我们使用`std::mem::swap`
 > If we know new insertion won't exceed the threadhold value we setup, thus, we do not expect to update internal `Vec`'s capacity, this is why we choose `std::mem::swap`
+
+# 8.全局变量
+> # 8.Global Variables
+
+在Rox的全部变量解析中，我们首先将代表常量的指令加入`Chunk`，然后才添加代表全局变量的`DefineGlobal`的指令，当我们运行时,常量会被压入栈，全局变量只进行出栈操作，最后把键值添加到我们的哈希表中
+> Regards to global variables in rox, we first add the constant of insturction to `Chunk`, and then we add `DefineGlobal` instuction, when we call `vm.run`,the constant instuction will push the value to stack, the global definition will only pop the value from stack, and finally add key and value to our hash table.
+<aside name="header">
+<img src="https://github.com/Kangaxx-0/rox/blob/main/assets/Rox_global.gif" alt="global" />
+</aside>
+
+
