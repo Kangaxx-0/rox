@@ -475,7 +475,7 @@ impl<'a> Parser<'a> {
                 return Some(idx);
             }
         }
-        return None;
+        None
     }
 
     fn identifier_constant(&mut self) -> usize {
@@ -576,7 +576,6 @@ impl<'a> Parser<'a> {
 
         if self.compiler.scope_depth > 0 {
             self.mark_initialized();
-            return;
         } else {
             self.emit_byte(OpCode::DefineGlobal(index));
         }
