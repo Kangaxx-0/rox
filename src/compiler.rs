@@ -531,9 +531,8 @@ impl<'a> Parser<'a> {
     fn end_scope(&mut self) {
         self.compiler.scope_depth -= 1;
 
+        // Clear the local variable inside the scope when the scope ends
         while self.compiler.local_count > 0
-            
-            // Clear the local variable inside the scope when the scope ends
             && self.compiler.locals[self.compiler.local_count - 1].depth > self.compiler.scope_depth
         {
             self.emit_byte(OpCode::Pop);
