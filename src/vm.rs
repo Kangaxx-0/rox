@@ -169,15 +169,28 @@ impl Vm {
                             hash: HashTable::hash(s),
                         };
                         if self.table.get(&key).is_some() {
+                            // We do not want to pop the value off the stack because it might be
+                            // re-used in other places. e.g. a = 1; b = a + 1; c = 2+a; print c;
+                            // should print 3
+                            let val = self.stack.peek(0).expect("unable to peek value");
                             // insert would replace the value with the same key
-                            self.table
-                                .insert(key, self.stack.pop().expect("unable to pop value"));
+                            self.table.insert(key, val.clone());
                         } else {
                             // when the key does note exist in the global has table, we throw a runtime error
                             self.runtime_error(format!("undefined variable '{}'", s).as_str());
                             return Err(InterpretError::RuntimeError);
                         }
                     }
+                    result = Ok(());
+                }
+                OpCode::GetLocal(v) => {
+                    let val = &self.stack.values[*v];
+                    self.stack.push(val.clone());
+                    result = Ok(());
+                }
+                OpCode::SetLocal(v) => {
+                    let val = self.stack.peek(0).expect("unable to pop value");
+                    self.stack.values[*v] = val.clone();
                     result = Ok(());
                 }
                 _ => {

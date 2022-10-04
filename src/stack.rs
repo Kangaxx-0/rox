@@ -2,7 +2,7 @@ use crate::value::Value;
 
 #[derive(Default, Debug, Clone)]
 pub struct Stack {
-    values: Vec<Value>,
+    pub values: Vec<Value>,
 }
 
 impl Iterator for Stack {
