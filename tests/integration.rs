@@ -493,6 +493,23 @@ fn rox_local_variable5() -> TestResult {
 }
 
 #[test]
+fn rox_local_variable6() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = a+b;
+            {
+                var b = 12;
+                var d = c + b;
+                print d;
+            }
+        "#,
+        "Printing value of 15",
+    )
+}
+
+#[test]
 fn rox_reassign_local() -> TestResult {
     run_test_contains(
         r#"
