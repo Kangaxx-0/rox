@@ -256,6 +256,18 @@ fn rox_variable3() -> TestResult {
 }
 
 #[test]
+fn rox_variable_use_twice() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = a+1;
+            var c = a+2;
+            print c;"#,
+        "Printing value of 3",
+    )
+}
+
+#[test]
 fn rox_variable_assign() -> TestResult {
     run_test_contains(
         r#"
@@ -398,6 +410,20 @@ fn rox_variable_assign_after_allocation3() -> TestResult {
             var yyyyyy = a + xxxxxx;
             print yyyyyy;"#,
         "Printing value of 58",
+    )
+}
+
+#[test]
+fn rox_local_variable() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            {
+                var a = 2;
+                print a;
+            }
+        "#,
+        "Printing value of 2",
     )
 }
 
