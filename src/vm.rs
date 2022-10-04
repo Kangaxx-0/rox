@@ -188,11 +188,11 @@ impl Vm {
                     self.stack.push(val.clone());
                     result = Ok(());
                 }
-                // OpCode::SetLocal(index) => {
-                //     self.
-                //     self.stack.push(value)
-                //     result = Ok(());
-                // }
+                OpCode::SetLocal(v) => {
+                    let val = self.stack.peek(0).expect("unable to pop value");
+                    self.stack.values[*v] = val.clone();
+                    result = Ok(());
+                }
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     result = Err(InterpretError::RuntimeError);

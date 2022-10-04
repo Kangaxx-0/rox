@@ -427,6 +427,134 @@ fn rox_local_variable() -> TestResult {
     )
 }
 
+#[test]
+fn rox_local_variable2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            {
+                var a = 2;
+            }
+            print a;
+        "#,
+        "Printing value of 1",
+    )
+}
+
+#[test]
+fn rox_local_variable3() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            {
+                var b = 2;
+                var c = b + a;
+                print c;
+            }
+        "#,
+        "Printing value of 3",
+    )
+}
+
+#[test]
+fn rox_local_variable4() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = a+b;
+            {
+                var b = 12;
+                var c = 13;
+                var d = c + b;
+            }
+            print c;
+        "#,
+        "Printing value of 3",
+    )
+}
+
+#[test]
+fn rox_local_variable5() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            var c = a+b;
+            {
+                var b = 12;
+                var c = 13;
+                var d = c + b;
+                print d;
+            }
+        "#,
+        "Printing value of 25",
+    )
+}
+
+#[test]
+fn rox_reassign_local() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            {
+                var a = 2;
+                a =3;
+                print a;
+            }
+        "#,
+        "Printing value of 3",
+    )
+}
+
+#[test]
+fn rox_reassign_local2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            {
+                var a = 2;
+                a = 3;
+                a = 4;
+                print a;
+            }
+        "#,
+        "Printing value of 4",
+    )
+}
+
+#[test]
+fn rox_duplicate_local() -> TestResult {
+    fail_test(
+        r#"
+            var a = 1;
+            {
+                var a = 2;
+                var a = 3;
+                print a;
+            }
+        "#,
+        "Variable with this name already declared in this scope",
+    )
+}
+
+#[test]
+fn rox_duplicate_local2() -> TestResult {
+    fail_test(
+        r#"
+            var a = 1;
+            var b = 2;
+            {
+                var a = 2;
+                var b = 3;
+                var a = 4;
+                print a;
+            }
+        "#,
+        "Variable with this name already declared in this scope",
+    )
+}
+
 // #[test]
 // fn rox_variable_assign_complex() -> TestResult {
 //     run_test_contains(
