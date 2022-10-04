@@ -405,22 +405,23 @@ impl<'a> Parser<'a> {
             return;
         }
 
-        let name = self.previous;
+        let name =
+            &self.scanner.bytes[self.previous.start..self.previous.start + self.previous.length];
         for i in (0..self.compiler.local_count).rev() {
             let local = self.compiler.locals[i];
             if local.depth != -1 && local.depth < self.compiler.scope_depth {
                 break;
             }
 
-            if name.length == local.name.length
-                && name.start == local.name.start
-                && name.line == local.name.line
-            {
-                self.error("Variable with this name already declared in this scope");
+            let local_name =
+                &self.scanner.bytes[local.name.start..local.name.start + local.name.length];
+
+            if local_name == name {
+                self.error("Variable with this name already declared in this scope.");
             }
         }
 
-        self.add_local(name);
+        self.add_local(self.previous);
     }
 
     fn add_local(&mut self, name: Token) {
@@ -428,10 +429,7 @@ impl<'a> Parser<'a> {
             self.error("Too many local variables in function");
             return;
         }
-        let mut local = Local {
-            name,
-            depth: self.compiler.scope_depth,
-        };
+        let mut local = Local { name, depth: -1 };
 
         std::mem::swap(
             &mut local,
@@ -445,24 +443,18 @@ impl<'a> Parser<'a> {
     }
 
     fn compile_named_variable(&mut self, name: Token, can_assign: bool) {
-        // let get_op: OpCode;
-        // let set_op: OpCode;
         let arg = self.resolve_local(&name);
         match arg {
             Some(index) => {
-                // get_op = OpCode::GetLocal;
-                // set_op = OpCode::SetLocal;
                 if self.match_token(TokenType::Equal) && can_assign {
                     self.expression();
-                    self.emit_byte(OpCode::GetLocal(index));
+                    self.emit_byte(OpCode::SetLocal(index));
                 } else {
                     self.emit_byte(OpCode::GetLocal(index));
                 }
             }
             None => {
                 let index = self.identifier_constant();
-                // get_op = OpCode::GetGlobal(index);
-                // set_op = OpCode::SetGlobal(index);
                 if self.match_token(TokenType::Equal) && can_assign {
                     self.expression();
                     self.emit_byte(OpCode::SetGlobal(index));
@@ -471,14 +463,6 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-
-        // let index = self.identifier_constant();
-        // if self.match_token(TokenType::Equal) && can_assign {
-        //     self.expression();
-        //     self.emit_byte(OpCode::SetGlobal(index));
-        // } else {
-        //     self.emit_byte(OpCode::GetGlobal(index));
-        // }
     }
 
     fn resolve_local(&mut self, name: &Token) -> Option<usize> {
@@ -488,9 +472,6 @@ impl<'a> Parser<'a> {
             let local_literal =
                 &self.scanner.bytes[local.name.start..local.name.start + local.name.length];
             if local_literal == token_literal {
-                if local.depth == -1 {
-                    self.error("Cannot read local variable in its own initializer");
-                }
                 return Some(idx);
             }
         }
@@ -594,10 +575,15 @@ impl<'a> Parser<'a> {
         );
 
         if self.compiler.scope_depth > 0 {
+            self.mark_initialized();
             return;
         } else {
             self.emit_byte(OpCode::DefineGlobal(index));
         }
+    }
+
+    fn mark_initialized(&mut self) {
+        self.compiler.locals[self.compiler.local_count - 1].depth = self.compiler.scope_depth;
     }
 
     fn declaration(&mut self) {
@@ -775,5 +761,21 @@ mod tests {
         assert_eq!(2, chunk.constants.len());
         // Constant, Constant, Print, GetLocal,Pop, Pop, Return
         assert_eq!(7, chunk.code.len());
+    }
+
+    #[test]
+    fn test_scope_fail() {
+        let source = r#"
+        {
+            var a = 1;
+            {
+                var a = 2;
+        }
+        "#
+        .as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert!(!parser.compile());
+        assert!(parser.had_error);
     }
 }
