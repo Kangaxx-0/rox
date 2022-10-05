@@ -60,8 +60,8 @@ impl Chunk {
         let instruction = &self.code[offset];
         let line = &self.lines[offset];
         match instruction {
-            OpCode::Call(v) => self.constant_instruction("Call", Some(v), offset, *line),
-            OpCode::Constant(v) => self.constant_instruction("Constant", Some(v), offset, *line),
+            OpCode::Call(v) => self.constant_instruction("Call", Some(*v), offset, *line),
+            OpCode::Constant(v) => self.constant_instruction("Constant", Some(*v), offset, *line),
             OpCode::Negative => self.constant_instruction("Negative", None, offset, *line),
             OpCode::Return => self.constant_instruction("Return", None, offset, *line),
             OpCode::Add => self.constant_instruction("Add", None, offset, *line),
@@ -77,22 +77,30 @@ impl Chunk {
             OpCode::Less => self.constant_instruction("Less", None, offset, *line),
             OpCode::Print => self.constant_instruction("Print", None, offset, *line),
             OpCode::Pop => self.constant_instruction("Pop", None, offset, *line),
-            OpCode::SetGlobal(v) => self.constant_instruction("Set Global", Some(v), offset, *line),
-            OpCode::GetGlobal(v) => self.constant_instruction("Get Global", Some(v), offset, *line),
-            OpCode::DefineGlobal(v) => {
-                self.constant_instruction("Define Global", Some(v), offset, *line)
+            OpCode::SetGlobal(v) => {
+                self.constant_instruction("Set Global", Some(*v), offset, *line)
             }
-            OpCode::GetLocal(v) => self.constant_instruction("Get Local", Some(v), offset, *line),
-            OpCode::SetLocal(v) => self.constant_instruction("Set Local", Some(v), offset, *line),
+            OpCode::GetGlobal(v) => {
+                self.constant_instruction("Get Global", Some(*v), offset, *line)
+            }
+            OpCode::DefineGlobal(v) => {
+                self.constant_instruction("Define Global", Some(*v), offset, *line)
+            }
+            OpCode::GetLocal(v) => self.constant_instruction("Get Local", Some(*v), offset, *line),
+            OpCode::SetLocal(v) => self.constant_instruction("Set Local", Some(*v), offset, *line),
+            OpCode::JumpIfFalse(v) => {
+                self.constant_instruction("Jump If False", Some(*v as usize), offset, *line)
+            }
+            OpCode::Jump(v) => self.constant_instruction("Jump", Some(*v as usize), offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
 
     // FIXME - complete this function
-    fn constant_instruction(&self, msg: &str, value: Option<&usize>, offset: usize, line: usize) {
+    fn constant_instruction(&self, msg: &str, value: Option<usize>, offset: usize, line: usize) {
         match value {
             Some(v) => {
-                let constant = &self.constants[*v];
+                let constant = &self.constants[v];
 
                 println!(
                     "OP CODE:{} - Line number {} - Constant pool index:{} and the value:{}",
@@ -194,7 +202,7 @@ mod tests {
         let constant = Value::Number(1.0);
         let index = chunk.push_constant(constant);
         chunk.write_to_chunk(OpCode::Constant(index), 1);
-        chunk.constant_instruction("Constant", Some(&index), 0, 1);
+        chunk.constant_instruction("Constant", Some(index), 0, 1);
         assert_eq!(1, chunk.len());
     }
 

@@ -515,6 +515,11 @@ impl<'a> Parser<'a> {
         self.emit_byte(code2);
     }
 
+    fn emit_jump(&mut self, code: OpCode) -> usize {
+        self.emit_byte(code);
+        self.chunk.code.len() - 1
+    }
+
     fn expression(&mut self) {
         self.parse_precedence(Precedence::Assignment);
     }
@@ -546,6 +551,49 @@ impl<'a> Parser<'a> {
         }
 
         self.consume(TokenType::RightBrace, "Expect '}' after block.");
+    }
+
+    fn parse_if(&mut self) {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'if'.");
+        self.expression();
+        self.consume(TokenType::RightParen, "Expect ')' after condition.");
+
+        let jump_idx = self.emit_jump(OpCode::JumpIfFalse(0xff));
+        self.emit_byte(OpCode::Pop);
+        self.statement();
+
+        let else_jump_idx = self.emit_jump(OpCode::Jump(0xff));
+        self.patch_if_false_jump(jump_idx);
+        self.emit_byte(OpCode::Pop);
+
+        if self.match_token(TokenType::Else) {
+            self.statement();
+        }
+        self.patch_jump(else_jump_idx);
+    }
+
+    fn patch_jump(&mut self, offset: usize) {
+        let jump_offset = self.chunk.code.len() - offset - 1;
+
+        if jump_offset > u16::MAX as usize {
+            self.error("Too much code to jump over.");
+        }
+
+        let new_code = OpCode::Jump(jump_offset as u16);
+
+        self.chunk.code[offset] = new_code;
+    }
+
+    fn patch_if_false_jump(&mut self, offset: usize) {
+        let jump_offset = self.chunk.code.len() - offset - 1;
+
+        if jump_offset > u16::MAX as usize {
+            self.error("Too much code to jump over.");
+        }
+
+        let new_code = OpCode::JumpIfFalse(jump_offset as u16);
+
+        self.chunk.code[offset] = new_code;
     }
 
     fn statement(&mut self) {
@@ -587,10 +635,11 @@ impl<'a> Parser<'a> {
     fn declaration(&mut self) {
         if self.match_token(TokenType::Var) {
             self.define_variable();
+        } else if self.match_token(TokenType::If) {
+            self.parse_if();
         } else {
             self.statement();
         }
-
         if self.panic_mode {
             self.synchronize();
         }
@@ -775,5 +824,37 @@ mod tests {
         let mut parser = Parser::new(source, &mut chunk);
         assert!(!parser.compile());
         assert!(parser.had_error);
+    }
+
+    #[test]
+    fn test_if() {
+        let source = r#"
+        if (true) {
+            print "true";
+        }
+        "#
+        .as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert!(parser.compile());
+        assert_eq!(1, chunk.constants.len());
+        assert_eq!(8, chunk.code.len());
+    }
+
+    #[test]
+    fn test_if_else() {
+        let source = r#"
+        if (true) {
+            print "true";
+        } else {
+            print "false";
+        }
+        "#
+        .as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert!(parser.compile());
+        assert_eq!(2, chunk.constants.len());
+        assert_eq!(10, chunk.code.len());
     }
 }
