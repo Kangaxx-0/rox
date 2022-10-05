@@ -572,6 +572,63 @@ fn rox_duplicate_local2() -> TestResult {
     )
 }
 
+#[test]
+fn rox_if_then() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            if (a == 1) {
+                print "a is 1";
+            }
+        "#,
+        "a is 1",
+    )
+}
+
+#[test]
+fn rox_if_false() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 2;
+            if (a == 1) {
+                print "a is 1";
+            }
+            print "done";
+        "#,
+        "done",
+    )
+}
+
+#[test]
+fn rox_if_else() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 2;
+            if (a == 1) {
+                print "a is 1";
+            } else {
+                print "a is not 1";
+            }
+        "#,
+        "a is not 1",
+    )
+}
+
+#[test]
+fn rox_if_else2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            if (a == 1) {
+                print "a is 1";
+            } else {
+                print "a is not 1";
+            }
+        "#,
+        "a is 1",
+    )
+}
+
 // #[test]
 // fn rox_variable_assign_complex() -> TestResult {
 //     run_test_contains(

@@ -116,7 +116,7 @@ impl Vm {
                 }
                 OpCode::Not => {
                     let val = self.stack.pop().expect("unable to pop value");
-                    self.stack.push(Value::Bool(is_falsey(val)));
+                    self.stack.push(Value::Bool(is_falsey(&val)));
                     result = Ok(());
                 }
                 OpCode::Equal => {
@@ -191,6 +191,16 @@ impl Vm {
                 OpCode::SetLocal(v) => {
                     let val = self.stack.peek(0).expect("unable to pop value");
                     self.stack.values[*v] = val.clone();
+                    result = Ok(());
+                }
+                OpCode::JumpIfFalse(offset) => {
+                    if is_falsey(self.stack.peek(0).expect("unable to peek value")) {
+                        self.ip += *offset as usize;
+                    }
+                    result = Ok(());
+                }
+                OpCode::Jump(offset) => {
+                    self.ip += *offset as usize;
                     result = Ok(());
                 }
                 _ => {
