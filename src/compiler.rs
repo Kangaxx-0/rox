@@ -282,6 +282,16 @@ impl<'a> Parser<'a> {
                 infix: None,
                 precedence: Precedence::No,
             },
+            TokenType::And => ParseRule {
+                prefix: None,
+                infix: Some(Parser::parse_and),
+                precedence: Precedence::And,
+            },
+            TokenType::Or => ParseRule {
+                prefix: None,
+                infix: Some(Parser::parse_or),
+                precedence: Precedence::Or,
+            },
             _ => ParseRule {
                 prefix: None,
                 infix: None,
@@ -398,6 +408,22 @@ impl<'a> Parser<'a> {
         }
 
         self.identifier_constant()
+    }
+
+    fn parse_and(&mut self, _: bool) {
+        let end_jump = self.emit_jump(OpCode::JumpIfFalse(0xff));
+        self.emit_byte(OpCode::Pop);
+        self.parse_precedence(Precedence::And);
+        self.patch_if_false_jump(end_jump);
+    }
+
+    fn parse_or(&mut self, _: bool) {
+        let end_jump = self.emit_jump(OpCode::Jump(0xff));
+
+        self.emit_byte(OpCode::Pop);
+
+        self.parse_precedence(Precedence::Or);
+        self.patch_jump(end_jump);
     }
 
     fn declare_variable(&mut self) {
@@ -856,5 +882,39 @@ mod tests {
         assert!(parser.compile());
         assert_eq!(2, chunk.constants.len());
         assert_eq!(10, chunk.code.len());
+    }
+
+    #[test]
+    fn test_and() {
+        let source = r#"
+        if (true and false) {
+            print "true";
+        } else {
+            print "false";
+        }
+        "#
+        .as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert!(parser.compile());
+        assert_eq!(2, chunk.constants.len());
+        assert_eq!(13, chunk.code.len());
+    }
+
+    #[test]
+    fn test_or() {
+        let source = r#"
+        if (true or false) {
+            print "true";
+        } else {
+            print "false";
+        }
+        "#
+        .as_bytes();
+        let mut chunk = Chunk::new();
+        let mut parser = Parser::new(source, &mut chunk);
+        assert!(parser.compile());
+        assert_eq!(2, chunk.constants.len());
+        assert_eq!(13, chunk.code.len());
     }
 }

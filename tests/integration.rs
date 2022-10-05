@@ -629,6 +629,82 @@ fn rox_if_else2() -> TestResult {
     )
 }
 
+#[test]
+fn rox_and() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            if (a == 1 and b == 2) {
+                print "a is 1 and b is 2";
+            }
+        "#,
+        "a is 1 and b is 2",
+    )
+}
+
+#[test]
+fn rox_and_falsey() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            if (a == 1 and b == 3) {
+                print "a is 1 and b is 2";
+            }
+            else{
+                print "a is 1 and b is not 2";
+            }
+        "#,
+        "a is 1 and b is not 2",
+    )
+}
+
+#[test]
+fn rox_or() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            if (a == 1 or b == 3) {
+                print "a is 1 or b is 3";
+            }
+        "#,
+        "a is 1 or b is 3",
+    )
+}
+
+#[test]
+fn rox_or_2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            if (a == 2 or b == 3) {
+                print "a is 2 or b is 3";
+            }
+            else{
+                print "a is not 2 and b is not 3";
+            }
+        "#,
+        "a is not 2 and b is not 3",
+    )
+}
+
+#[test]
+fn rox_and_or() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            var b = 2;
+            if (a == 1 and b == 2 or a == 2 and b == 3) {
+                print "a is 1 and b is 2 or a is 2 and b is 3";
+            }
+        "#,
+        "a is 1 and b is 2 or a is 2 and b is 3",
+    )
+}
+
 // #[test]
 // fn rox_variable_assign_complex() -> TestResult {
 //     run_test_contains(
