@@ -774,3 +774,16 @@ fn rox_for3() -> TestResult {
         "5",
     )
 }
+
+#[test]
+fn rox_for_local_scope() -> TestResult {
+    fail_test(
+        r#"
+            for (var i = 0; i < 5; i = i + 1) {
+                print i;
+            }
+            print i;
+        "#,
+        "undefined variable 'i'",
+    )
+}

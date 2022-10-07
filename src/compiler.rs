@@ -665,6 +665,7 @@ impl<'a> Parser<'a> {
 
         let mut jump_idx = 0;
 
+        // Condition cluase
         let mut loop_start = self.chunk.code.len() - 1;
         if !self.match_token(TokenType::Semicolon) {
             self.expression();
@@ -674,6 +675,7 @@ impl<'a> Parser<'a> {
             self.emit_byte(OpCode::Pop);
         }
 
+        // Increment clause
         if !self.match_token(TokenType::RightParen) {
             let body_jump_idx = self.emit_jump(OpCode::Jump(0xff));
             let increment_start = self.chunk.code.len() - 1;
