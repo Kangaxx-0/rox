@@ -203,6 +203,13 @@ impl Vm {
                     self.ip += *offset as usize;
                     result = Ok(());
                 }
+                OpCode::Loop(offset) => {
+                    self.ip -= *offset as usize;
+                    // We need to subtract 1 from the ip because the ip will be incremented by 1
+                    // at the end of the loop
+                    self.ip -= 1;
+                    result = Ok(());
+                }
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     result = Err(InterpretError::RuntimeError);
