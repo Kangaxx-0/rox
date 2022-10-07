@@ -545,7 +545,7 @@ impl<'a> Parser<'a> {
     }
 
     fn emit_loop(&mut self, loop_start: u16) {
-        let len = u16::try_from(self.chunk.code.len()).unwrap();
+        let len = u16::try_from(self.chunk.code.len()).expect("Chunk code too large");
 
         let offset = len - loop_start - 1;
         if offset > 0xff {
@@ -642,7 +642,7 @@ impl<'a> Parser<'a> {
         let jump_idx = self.emit_jump(OpCode::JumpIfFalse(0xff));
         self.emit_byte(OpCode::Pop);
         self.statement();
-        self.emit_loop(u16::try_from(loop_start).unwrap());
+        self.emit_loop(u16::try_from(loop_start).expect("Chunk code too large"));
 
         self.patch_if_false_jump(jump_idx);
         self.emit_byte(OpCode::Pop);
