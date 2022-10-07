@@ -584,6 +584,8 @@ impl<'a> Parser<'a> {
     fn expression(&mut self) {
         self.parse_precedence(Precedence::Assignment);
     }
+
+    // expression statement looks for a semicolon and also emits a pop instruction.
     fn expression_statement(&mut self) {
         self.expression();
         self.consume(TokenType::Semicolon, "Expect ';' after expression.");
@@ -648,6 +650,50 @@ impl<'a> Parser<'a> {
         self.emit_byte(OpCode::Pop);
     }
 
+    fn parse_for(&mut self) {
+        // for loop var should be scoped
+        self.begin_scope();
+        self.consume(TokenType::LeftParen, "Expect '(' after 'for'.");
+
+        if self.match_token(TokenType::Semicolon) {
+            // No initializer
+        } else if self.match_token(TokenType::Var) {
+            self.define_variable();
+        } else {
+            self.expression_statement();
+        }
+
+        let mut jump_idx = 0;
+
+        // Condition cluase
+        let mut loop_start = self.chunk.code.len() - 1;
+        if !self.match_token(TokenType::Semicolon) {
+            self.expression();
+            self.consume(TokenType::Semicolon, "Expect ';' after loop condition.");
+
+            jump_idx = self.emit_jump(OpCode::JumpIfFalse(0xff));
+            self.emit_byte(OpCode::Pop);
+        }
+
+        // Increment clause
+        if !self.match_token(TokenType::RightParen) {
+            let body_jump_idx = self.emit_jump(OpCode::Jump(0xff));
+            let increment_start = self.chunk.code.len() - 1;
+            self.expression();
+            self.emit_byte(OpCode::Pop);
+            self.consume(TokenType::RightParen, "Expect ')' after for clauses.");
+
+            self.emit_loop(u16::try_from(loop_start).expect("Chunk code too large"));
+            loop_start = increment_start;
+            self.patch_jump(body_jump_idx);
+        }
+        self.statement();
+        self.emit_loop(u16::try_from(loop_start).expect("Chunk code too large"));
+
+        self.patch_if_false_jump(jump_idx);
+        self.end_scope();
+    }
+
     fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
             self.parse_print(true);
@@ -691,6 +737,8 @@ impl<'a> Parser<'a> {
             self.parse_if();
         } else if self.match_token(TokenType::While) {
             self.parse_while();
+        } else if self.match_token(TokenType::For) {
+            self.parse_for();
         } else {
             self.statement();
         }

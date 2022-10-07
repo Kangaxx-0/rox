@@ -732,3 +732,58 @@ fn rox_while2() -> TestResult {
         "5",
     )
 }
+
+#[test]
+fn rox_for() -> TestResult {
+    run_test_contains(
+        r#"
+            var x = 1;
+            for (var i = 0; i < 5; i = i + 1) {
+                x = x + i;
+            }
+            print x;
+        "#,
+        "5",
+    )
+}
+
+#[test]
+fn rox_for2() -> TestResult {
+    run_test_contains(
+        r#"
+            var x = 1;
+            for (;x < 5;) {
+                x = x + 1;
+            }
+            print x;
+        "#,
+        "5",
+    )
+}
+
+#[test]
+fn rox_for3() -> TestResult {
+    run_test_contains(
+        r#"
+            var x = 1;
+            for (; x < 5;x = x + 2) {
+                print "inside the loop";
+            }
+            print x;
+        "#,
+        "5",
+    )
+}
+
+#[test]
+fn rox_for_local_scope() -> TestResult {
+    fail_test(
+        r#"
+            for (var i = 0; i < 5; i = i + 1) {
+                print i;
+            }
+            print i;
+        "#,
+        "undefined variable 'i'",
+    )
+}
