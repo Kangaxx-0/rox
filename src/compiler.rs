@@ -209,6 +209,30 @@ impl<'a> Parser<'a> {
         self.current.t_type == t
     }
 
+    fn patch_jump(&mut self, offset: usize) {
+        let jump_offset = self.chunk.code.len() - offset - 1;
+
+        if jump_offset > u16::MAX as usize {
+            self.error("Too much code to jump over.");
+        }
+
+        let new_code = OpCode::Jump(jump_offset as u16);
+
+        self.chunk.code[offset] = new_code;
+    }
+
+    fn patch_if_false_jump(&mut self, offset: usize) {
+        let jump_offset = self.chunk.code.len() - offset - 1;
+
+        if jump_offset > u16::MAX as usize {
+            self.error("Too much code to jump over.");
+        }
+
+        let new_code = OpCode::JumpIfFalse(jump_offset as u16);
+
+        self.chunk.code[offset] = new_code;
+    }
+
     fn match_token(&mut self, token_type: TokenType) -> bool {
         if !self.check(token_type) {
             return false;
@@ -520,12 +544,15 @@ impl<'a> Parser<'a> {
         self.emit_byte(OpCode::Constant(index));
     }
 
-    fn end_compiler(&mut self) {
-        self.emit_return();
+    fn emit_loop(&mut self, loop_start: u16) {
+        let len = u16::try_from(self.chunk.code.len()).unwrap();
 
-        if !self.had_error {
-            // self.chunk.disassemble_chunk("code");
+        let offset = len - loop_start - 1;
+        if offset > 0xff {
+            self.error("Loop body too large.");
         }
+
+        self.emit_byte(OpCode::Loop(offset))
     }
 
     fn emit_return(&mut self) {
@@ -544,6 +571,14 @@ impl<'a> Parser<'a> {
     fn emit_jump(&mut self, code: OpCode) -> usize {
         self.emit_byte(code);
         self.chunk.code.len() - 1
+    }
+
+    fn end_compiler(&mut self) {
+        self.emit_return();
+
+        if !self.had_error {
+            // self.chunk.disassemble_chunk("code");
+        }
     }
 
     fn expression(&mut self) {
@@ -598,28 +633,19 @@ impl<'a> Parser<'a> {
         self.patch_jump(else_jump_idx);
     }
 
-    fn patch_jump(&mut self, offset: usize) {
-        let jump_offset = self.chunk.code.len() - offset - 1;
+    fn parse_while(&mut self) {
+        let loop_start = self.chunk.code.len() - 1;
+        self.consume(TokenType::LeftParen, "Expect '(' after 'while'.");
+        self.expression();
+        self.consume(TokenType::RightParen, "Expect ')' after condition.");
 
-        if jump_offset > u16::MAX as usize {
-            self.error("Too much code to jump over.");
-        }
+        let jump_idx = self.emit_jump(OpCode::JumpIfFalse(0xff));
+        self.emit_byte(OpCode::Pop);
+        self.statement();
+        self.emit_loop(u16::try_from(loop_start).unwrap());
 
-        let new_code = OpCode::Jump(jump_offset as u16);
-
-        self.chunk.code[offset] = new_code;
-    }
-
-    fn patch_if_false_jump(&mut self, offset: usize) {
-        let jump_offset = self.chunk.code.len() - offset - 1;
-
-        if jump_offset > u16::MAX as usize {
-            self.error("Too much code to jump over.");
-        }
-
-        let new_code = OpCode::JumpIfFalse(jump_offset as u16);
-
-        self.chunk.code[offset] = new_code;
+        self.patch_if_false_jump(jump_idx);
+        self.emit_byte(OpCode::Pop);
     }
 
     fn statement(&mut self) {
@@ -663,6 +689,8 @@ impl<'a> Parser<'a> {
             self.define_variable();
         } else if self.match_token(TokenType::If) {
             self.parse_if();
+        } else if self.match_token(TokenType::While) {
+            self.parse_while();
         } else {
             self.statement();
         }

@@ -705,16 +705,30 @@ fn rox_and_or() -> TestResult {
     )
 }
 
-// #[test]
-// fn rox_variable_assign_complex() -> TestResult {
-//     run_test_contains(
-//         r#"
-//             var a = 2;
-//             var b = 3;
-//             var c = 4;
-//             var d = 5;
-//
-//             a*b=c+d; "#,
-//         "Printing value of 18",
-//     )
-// }
+#[test]
+fn rox_while() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            while (a < 5) {
+                a = a + 1;
+            }
+            print a;
+        "#,
+        "5",
+    )
+}
+
+#[test]
+fn rox_while2() -> TestResult {
+    run_test_contains(
+        r#"
+            var a = 1;
+            while (a < 6 and a != 5) {
+                a = a + 1;
+            }
+            print a;
+        "#,
+        "5",
+    )
+}
