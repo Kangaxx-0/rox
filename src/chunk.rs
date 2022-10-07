@@ -88,10 +88,6 @@ impl Chunk {
             }
             OpCode::GetLocal(v) => self.constant_instruction("Get Local", Some(*v), offset, *line),
             OpCode::SetLocal(v) => self.constant_instruction("Set Local", Some(*v), offset, *line),
-            OpCode::JumpIfFalse(v) => {
-                self.constant_instruction("Jump If False", Some(*v as usize), offset, *line)
-            }
-            OpCode::Jump(v) => self.constant_instruction("Jump", Some(*v as usize), offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
