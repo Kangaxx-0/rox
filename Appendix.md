@@ -164,4 +164,13 @@ TBD
 <img src="https://github.com/Kangaxx-0/rox/blob/main/assets/Rox_global.gif" alt="global" />
 </aside>
 
+# 9.局部变量
+> # 9.Local Variables
+关于局部变量最重要的一点就是 - 我们并不会在我们的哈希表保存它们，当作用域结束时对他们进行出栈
+> The most important note for local variables is - We do not add them to our hash table ever, and pop them out when scope ends
 
+# 10. 跳转
+> # 10.Jumping Back and Forth
+
+关于跳转的填充物，我们这里用的是Rust Enum(i16)作为临时的指令码，需要注意的是因为我们代表常量的指令码是`usize`,所以每一个enum variants都是`usize`大小，而并不是原书中的两个字节
+> Regards to the jump placeholder offset operand, we use Rust Enum(i16) as op_code, and please notice we have `Constant(usize)` represent constant, so every enum variant is the same size of `usize`, not two bytes the book noted
