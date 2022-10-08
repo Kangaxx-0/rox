@@ -3,7 +3,9 @@
 > # Chapter of Chunks of Bytecodes
 
 ## Vec
-Our vector implementation `Lec` is leveraging the power of `Unsafe`, rustonomicon has more details
+> ## Vec
+我们向量的实现`Lec`是基于`Unsafe`，rustonomicon有更多的细节
+> Our vector implementation `Lec` is leveraging the power of `Unsafe`, rustonomicon has more details
 
 ## `uint8_t`是什么?
 > ## What is `uint8_t`?
@@ -155,7 +157,8 @@ TBD
 # 7.哈希表
 > # 7.Hash Tables
 
-The implementation is based on safe code, I will re-visit this with `Unsafe` after finishing everything
+当前的实现基于rust safe代码，当我完全剩下章节的工作，会基于`Unsafe`重新审视这块
+> The implementation is based on safe code, I will re-visit this with `Unsafe` after finishing everything
 
 在我们哈希表实现中，在已知不会超过阈值得情况下，我们不希望在插入新值时变化内部Vec的容量，所以我们使用`std::mem::swap`
 > If we know new insertion won't exceed the threadhold value we setup, thus, we do not expect to update internal `Vec`'s capacity, this is why we choose `std::mem::swap`
