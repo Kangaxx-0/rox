@@ -2,6 +2,9 @@
 # 1.字节码块章节
 > # Chapter of Chunks of Bytecodes
 
+## Vec
+Our vector implementation `Lec` is leveraging the power of `Unsafe`, rustonomicon has more details
+
 ## `uint8_t`是什么?
 > ## What is `uint8_t`?
 `uint8_t`是无符号1个字节的整型，它一般被用来处理跨平台上需要同样比特的无符号或有符号类型
@@ -151,6 +154,8 @@ TBD
 
 # 7.哈希表
 > # 7.Hash Tables
+
+The implementation is based on safe code, I will re-visit this with `Unsafe` after finishing everything
 
 在我们哈希表实现中，在已知不会超过阈值得情况下，我们不希望在插入新值时变化内部Vec的容量，所以我们使用`std::mem::swap`
 > If we know new insertion won't exceed the threadhold value we setup, thus, we do not expect to update internal `Vec`'s capacity, this is why we choose `std::mem::swap`

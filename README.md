@@ -10,7 +10,7 @@ How bytecode VM interpreter works:
 <img src="https://github.com/Kangaxx-0/rox/blob/main/assets/rox_flow.png" alt="diagram" />
 </aside>
 
-Also, a lot of implementation details and questions can be found [Appendix](https://github.com/Kangaxx-0/rox/blob/main/Appendix.md).  it contains both English and Chinese. Check it out!
+Also, a lot of implementation details and questions can be found [here](https://github.com/Kangaxx-0/rox/blob/main/implementation_notes.md).  It contains both English and Chinese. Check it out!
 
 
 阅读推荐:
