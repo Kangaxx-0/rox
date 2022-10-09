@@ -152,7 +152,18 @@ Rox的值类型充分利用了Rust里的`Enum`,所以当你阅读原书发现里
 # 6.字符串
 > # 6.Strings
 
-TBD
+在原书中，作者单独花了不少篇幅来讨论Obj以及实现,Obj就是代表存在堆上的动态类型，Rust是类型安全，我们并不需要为此单独实现
+> In the book, author spend a few sections to talk about Obj and its implementation, basically, Obj represents all types which are stored on heap. Since Rust is type-safe, so we do not need extra implementation.
+
+```
+struct Obj {
+  ObjType type;
+};
+
+typedef enum {
+  OBJ_STRING,
+} ObjType;
+```
 
 # 7.哈希表
 > # 7.Hash Tables
