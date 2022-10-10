@@ -193,3 +193,9 @@ typedef enum {
 
 关于跳转的填充物，我们这里用的是Rust Enum(i16)作为临时的指令码，需要注意的是因为我们代表常量的指令码是`usize`,所以每一个enum variants都是`usize`大小，而并不是原书中的两个字节
 > Regards to the jump placeholder offset operand, we use Rust Enum(i16) as op_code, and please notice we have `Constant(usize)` represent constant, so every enum variant is the same size of `usize`, not two bytes the book noted
+
+# 11. 调用和函数
+> # 11. Calls and Functions
+
+在这一章节之前，虚拟机拥有`Chunk`的所有权，解释器结构体只引用`Chunk`，在解析过程中将生成的指令，常量等加入`chunk`,最后虚拟机调用`run`方法来执行.在这一章，我们会重新整理结构
+> Before this chapter, the VM owns `Chunk`, and our parser only reference `Chunk`, parser push instruction code and constants to `Chunk`, and finally, vm calls its `run` function. In this chapter, we are going to re-organize  the structure.
