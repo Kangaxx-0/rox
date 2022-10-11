@@ -1,10 +1,11 @@
 use crate::{
     chunk::Chunk,
     compiler::Parser,
-    hashtable::{HashKeyString, HashTable},
+    hashtable::HashTable,
+    objects::{HashKeyString, ObjFunction},
     op_code::OpCode,
     stack::Stack,
-    utils::is_falsey,
+    utils::{hash, is_falsey},
     value::Value,
 };
 
@@ -16,7 +17,6 @@ pub enum InterpretError {
 }
 
 pub struct Vm {
-    chunk: Chunk,
     ip: usize,
     stack: Stack,
     table: HashTable,
@@ -25,7 +25,6 @@ pub struct Vm {
 impl Vm {
     pub fn new() -> Self {
         Self {
-            chunk: Chunk::new(),
             ip: 0,
             stack: Stack::new(),
             table: HashTable::new(),
@@ -37,28 +36,30 @@ impl Vm {
     }
 
     pub fn interpret(&mut self, bytes: &str) -> Result<(), InterpretError> {
-        let mut parser = Parser::new(bytes.as_bytes(), &mut self.chunk);
-        if !parser.compile() {
-            return Err(InterpretError::CompileError);
+        let parser = Parser::new(bytes.as_bytes());
+        match parser.compile() {
+            Ok(obj) => {
+                self.run(obj);
+                Ok(())
+            }
+            Err(_) => Err(InterpretError::CompileError),
         }
-
-        self.run()
     }
 
-    fn run(&mut self) -> Result<(), InterpretError> {
+    fn run(&mut self, obj: ObjFunction) -> Result<(), InterpretError> {
         let mut result = Err(InterpretError::Default);
         loop {
-            if self.ip == self.chunk.len() {
+            if self.ip == obj.chunk.len() {
                 break;
             }
-            let chunk = &self.chunk;
+            let chunk = &obj.chunk;
             // Enable this to see the chunk and stack
-            self.chunk.disassemble_instruction(self.ip);
+            obj.chunk.disassemble_instruction(self.ip);
             self.print_stack();
             match &chunk.code[self.ip] {
                 OpCode::Return => result = Ok(()),
                 OpCode::Constant(v) => {
-                    let val = &self.chunk.constants[*v];
+                    let val = &obj.chunk.constants[*v];
                     self.stack.push(val.clone());
                     result = Ok(());
                 }
@@ -80,25 +81,25 @@ impl Vm {
                 }
                 OpCode::Add => {
                     if self.binary_operation(OpCode::Add).is_err() {
-                        self.runtime_error("operands must be two numbers or two strings");
+                        self.runtime_error(&obj, "operands must be two numbers or two strings");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Subtract => {
                     if self.binary_operation(OpCode::Subtract).is_err() {
-                        self.runtime_error("operands must be two numbers");
+                        self.runtime_error(&obj, "operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Multiply => {
                     if self.binary_operation(OpCode::Multiply).is_err() {
-                        self.runtime_error("operands must be two numbers");
+                        self.runtime_error(&obj, "operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Divide => {
                     if self.binary_operation(OpCode::Divide).is_err() {
-                        self.runtime_error("operands must be two numbers");
+                        self.runtime_error(&obj, "operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
@@ -137,10 +138,10 @@ impl Vm {
                     result = Ok(());
                 }
                 OpCode::DefineGlobal(v) => {
-                    if let Value::String(s) = &self.chunk.constants[*v] {
+                    if let Value::String(s) = &obj.chunk.constants[*v] {
                         let key = HashKeyString {
                             value: s.clone(),
-                            hash: HashTable::hash(s),
+                            hash: hash(s),
                         };
                         self.table
                             .insert(key, self.stack.pop().expect("unable to pop value"));
@@ -148,25 +149,28 @@ impl Vm {
                     result = Ok(());
                 }
                 OpCode::GetGlobal(v) => {
-                    if let Value::String(s) = &self.chunk.constants[*v] {
+                    if let Value::String(s) = &obj.chunk.constants[*v] {
                         let key = HashKeyString {
                             value: s.clone(),
-                            hash: HashTable::hash(s),
+                            hash: hash(s),
                         };
                         if let Some(val) = self.table.get(&key) {
                             self.stack.push(val.clone());
                         } else {
-                            self.runtime_error(format!("undefined variable '{}'", s).as_str());
+                            self.runtime_error(
+                                &obj,
+                                format!("undefined variable '{}'", s).as_str(),
+                            );
                             return Err(InterpretError::RuntimeError);
                         }
                     }
                     result = Ok(());
                 }
                 OpCode::SetGlobal(v) => {
-                    if let Value::String(s) = &self.chunk.constants[*v] {
+                    if let Value::String(s) = &obj.chunk.constants[*v] {
                         let key = HashKeyString {
                             value: s.clone(),
-                            hash: HashTable::hash(s),
+                            hash: hash(s),
                         };
                         if self.table.get(&key).is_some() {
                             // We do not want to pop the value off the stack because it might be
@@ -177,7 +181,10 @@ impl Vm {
                             self.table.insert(key, val.clone());
                         } else {
                             // when the key does note exist in the global has table, we throw a runtime error
-                            self.runtime_error(format!("undefined variable '{}'", s).as_str());
+                            self.runtime_error(
+                                &obj,
+                                format!("undefined variable '{}'", s).as_str(),
+                            );
                             return Err(InterpretError::RuntimeError);
                         }
                     }
@@ -224,11 +231,11 @@ impl Vm {
         result
     }
 
-    fn runtime_error(&mut self, message: &str) {
+    fn runtime_error(&mut self, obj: &ObjFunction, message: &str) {
         eprint!("Runtime error: {}", message);
 
-        let instruction = self.ip - self.chunk.code.len() - 1;
-        let line = self.chunk.lines[instruction];
+        let instruction = self.ip - obj.chunk.code.len() - 1;
+        let line = obj.chunk.lines[instruction];
 
         eprintln!(" [line {}]", line);
 
