@@ -8,6 +8,7 @@ pub struct HashKeyString {
     pub hash: u64,
 }
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct ObjFunction {
     pub arity: u8,
     pub chunk: Chunk,

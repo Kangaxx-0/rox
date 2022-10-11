@@ -9,6 +9,8 @@ use crate::{
     value::Value,
 };
 
+const FRAME_MAX: usize = 64;
+
 #[derive(Debug)]
 pub enum InterpretError {
     CompileError,
@@ -16,18 +18,40 @@ pub enum InterpretError {
     Default,
 }
 
+#[derive(Clone, Debug)]
+// represents a single ongoing function call
+// TODO - function calla are a core operation, can we do not use heap allocation here?
+pub struct CallFrame {
+    function: ObjFunction,
+    ip: usize,    // when we return from a function, caller needs to know where to resume
+    slots: usize, // points to vm stack at the first slot function can use
+}
+
+impl CallFrame {
+    pub fn new(function: ObjFunction, ip: usize, slots: usize) -> Self {
+        Self {
+            function,
+            ip,
+            slots,
+        }
+    }
+}
+
 pub struct Vm {
-    ip: usize,
+    // ip: usize,
     stack: Stack,
     table: HashTable,
+    frames: Vec<CallFrame>,
+    frame_count: usize, // current height of the call frame stack - the number of ongoing calls.
 }
 
 impl Vm {
     pub fn new() -> Self {
         Self {
-            ip: 0,
             stack: Stack::new(),
             table: HashTable::new(),
+            frames: Vec::with_capacity(FRAME_MAX),
+            frame_count: 0,
         }
     }
 
@@ -46,21 +70,34 @@ impl Vm {
         }
     }
 
+    fn current_frame(&self) -> &CallFrame {
+        self.frames.last().expect("no current frame")
+    }
+
+    fn current_frame_mut(&mut self) -> &mut CallFrame {
+        self.frames.last_mut().expect("no current frame")
+    }
+
+    fn push(&mut self, value: Value) {
+        self.stack.push(value);
+    }
+
     fn run(&mut self, obj: ObjFunction) -> Result<(), InterpretError> {
         let mut result = Err(InterpretError::Default);
+        let chunk = &mut self.frames[self.frame_count - 1].function.chunk;
         loop {
-            if self.ip == obj.chunk.len() {
-                break;
-            }
+            // if chunk.ip == obj.chunk.len() {
+            //     break;
+            // }
             let chunk = &obj.chunk;
             // Enable this to see the chunk and stack
-            obj.chunk.disassemble_instruction(self.ip);
-            self.print_stack();
-            match &chunk.code[self.ip] {
+            // obj.chunk.disassemble_instruction(frame.ip);
+            // self.print_stack();
+            match &chunk.code[frame.ip] {
                 OpCode::Return => result = Ok(()),
                 OpCode::Constant(v) => {
                     let val = &obj.chunk.constants[*v];
-                    self.stack.push(val.clone());
+                    self.push(val.clone());
                     result = Ok(());
                 }
                 OpCode::Negative => {
@@ -202,19 +239,19 @@ impl Vm {
                 }
                 OpCode::JumpIfFalse(offset) => {
                     if is_falsey(self.stack.peek(0).expect("unable to peek value")) {
-                        self.ip += *offset as usize;
+                        frame.ip += *offset as usize;
                     }
                     result = Ok(());
                 }
                 OpCode::Jump(offset) => {
-                    self.ip += *offset as usize;
+                    frame.ip += *offset as usize;
                     result = Ok(());
                 }
                 OpCode::Loop(offset) => {
-                    self.ip -= *offset as usize;
+                    frame.ip -= *offset as usize;
                     // We need to subtract 1 from the ip because the ip will be incremented by 1
                     // at the end of the loop
-                    self.ip -= 1;
+                    frame.ip -= 1;
                     result = Ok(());
                 }
                 _ => {
@@ -225,16 +262,17 @@ impl Vm {
 
             //FIXME - Can we come up with a better idea to exit the loop, then we might not need
             //the instruction pointer at all.
-            self.ip += 1;
+            frame.ip += 1;
         }
 
         result
     }
 
     fn runtime_error(&mut self, obj: &ObjFunction, message: &str) {
+        let frame = &self.frames[self.frame_count - 1];
         eprint!("Runtime error: {}", message);
 
-        let instruction = self.ip - obj.chunk.code.len() - 1;
+        let instruction = frame.ip - obj.chunk.code.len() - 1;
         let line = obj.chunk.lines[instruction];
 
         eprintln!(" [line {}]", line);
