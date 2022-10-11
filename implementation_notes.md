@@ -198,4 +198,17 @@ typedef enum {
 > # 11. Calls and Functions
 
 在这一章节之前，虚拟机拥有`Chunk`的所有权，解释器结构体只引用`Chunk`，在解析过程中将生成的指令，常量等加入`chunk`,最后虚拟机调用`run`方法来执行.在这一章，我们会重新整理结构
-> Before this chapter, the VM owns `Chunk`, and our parser only reference `Chunk`, parser push instruction code and constants to `Chunk`, and finally, vm calls its `run` function. In this chapter, we are going to re-organize  the structure.
+> Before this chapter, the VM owns `Chunk`, and our parser only reference `Chunk`, parser push instruction code and constants to `Chunk`, and finally, vm calls its `run` function. In this chapter, we are going to re-organize the structure.
+
+关于新的改动，虚拟机只采用调用方法执行代码这一种方法，每次编译方法结束返回的`ObjFuntion`都会被添加到虚拟机的`Frames`. 每当虚拟器执行`run`方法时，虚拟机进行出栈操作获得最后一个`frame`从来解析和执行指令
+> With the new change, vm alwayas runs code by invoking a function, and every time `compile` function returns a `ObjFunction` and it will be pushed into `Frames`. When `vm` calls `run` function, it pops the last frame and looks into the `Chunk`, run the instructions.
+
+函数是什么？
+> what is function?
+
+函数是一个可以被执行的独立单元，也就是说函数是字节码的合集，每个函数都有一个指针指向其字节码的第一个指令
+> A functuion is an execuable unit, so that means some bytecode. Each funtion would have a pointer to the first instruction of its code inside the Chunk.
+<aside name="header">
+<img src="https://github.com/Kangaxx-0/rox/blob/safe/assets/function-obj.drawio.png" alt="global" />
+</aside>
+
