@@ -2,6 +2,7 @@ pub mod chunk;
 pub mod compiler;
 pub mod hashtable;
 pub mod lec;
+pub mod objects;
 pub mod op_code;
 pub mod scanner;
 pub mod stack;
