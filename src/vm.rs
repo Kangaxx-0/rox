@@ -185,23 +185,18 @@ impl Vm {
                 OpCode::Constant(v) => {
                     let val = &frame.function.chunk.constants[v];
                     self.push(val.clone());
-                    return Ok(());
                 }
-                OpCode::Negative => {
-                    match self.peek(0).expect("unable to peek value") {
-                        Value::Number(_) => {
-                            if let Value::Number(v) = self.pop().expect("unable to pop value") {
-                                self.push(Value::Number(-v));
-                            }
-                        }
-                        _ => {
-                            println!("operand must be a number");
-                            return Err(InterpretError::RuntimeError);
+                OpCode::Negative => match self.peek(0).expect("unable to peek value") {
+                    Value::Number(_) => {
+                        if let Value::Number(v) = self.pop().expect("unable to pop value") {
+                            self.push(Value::Number(-v));
                         }
                     }
-
-                    return Ok(());
-                }
+                    _ => {
+                        println!("operand must be a number");
+                        return Err(InterpretError::RuntimeError);
+                    }
+                },
                 OpCode::Add => {
                     if self.binary_operation(OpCode::Add).is_err() {
                         self.runtime_error(&frame, "operands must be two numbers or two strings");
@@ -228,37 +223,30 @@ impl Vm {
                 }
                 OpCode::Nil => {
                     self.push(Value::Nil);
-                    return Ok(());
                 }
                 OpCode::True => {
                     self.push(Value::Bool(true));
-                    return Ok(());
                 }
                 OpCode::False => {
                     self.push(Value::Bool(false));
-                    return Ok(());
                 }
                 OpCode::Not => {
                     let val = self.pop().expect("unable to pop value");
                     self.push(Value::Bool(is_falsey(&val)));
-                    return Ok(());
                 }
                 OpCode::Equal => {
                     let b = self.pop();
                     let a = self.pop();
                     self.push(Value::Bool(a == b));
-                    return Ok(());
                 }
                 OpCode::Greater => self.binary_operation(OpCode::Greater)?,
                 OpCode::Less => self.binary_operation(OpCode::Less)?,
                 OpCode::Pop => {
                     self.pop();
-                    return Ok(());
                 }
                 OpCode::Print => {
                     let val = self.pop().expect("unable to pop value");
                     println!("Printing value of {}", val);
-                    return Ok(());
                 }
                 OpCode::DefineGlobal(v) => {
                     if let Value::String(s) = &frame.function.chunk.constants[v] {
@@ -269,7 +257,6 @@ impl Vm {
                         let val = self.pop().expect("unable to pop value");
                         self.table.insert(key, val);
                     }
-                    return Ok(());
                 }
                 OpCode::GetGlobal(v) => {
                     if let Value::String(s) = &frame.function.chunk.constants[v] {
@@ -287,7 +274,6 @@ impl Vm {
                             return Err(InterpretError::RuntimeError);
                         }
                     }
-                    return Ok(());
                 }
                 OpCode::SetGlobal(v) => {
                     if let Value::String(s) = &frame.function.chunk.constants[v] {
@@ -311,34 +297,28 @@ impl Vm {
                             return Err(InterpretError::RuntimeError);
                         }
                     }
-                    return Ok(());
                 }
                 OpCode::GetLocal(v) => {
                     let val = &self.stack.values[v];
                     self.push(val.clone());
-                    return Ok(());
                 }
                 OpCode::SetLocal(v) => {
                     let val = self.peek(0).expect("unable to pop value");
                     self.stack.values[v] = val.clone();
-                    return Ok(());
                 }
                 OpCode::JumpIfFalse(offset) => {
                     if is_falsey(self.peek(0).expect("unable to peek value")) {
                         frame.ip += offset as usize;
                     }
-                    return Ok(());
                 }
                 OpCode::Jump(offset) => {
                     frame.ip += offset as usize;
-                    return Ok(());
                 }
                 OpCode::Loop(offset) => {
                     frame.ip -= offset as usize;
                     // We need to subtract 1 from the ip because the ip will be incremented by 1
                     // at the end of the loop
                     frame.ip -= 1;
-                    return Ok(());
                 }
                 _ => {
                     println!("Unknown operation code during interpreting!");
