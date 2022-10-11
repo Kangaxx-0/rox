@@ -1,6 +1,5 @@
+use crate::compiler::Parser;
 use crate::{
-    chunk::Chunk,
-    compiler::Parser,
     hashtable::HashTable,
     objects::{HashKeyString, ObjFunction},
     op_code::OpCode,
@@ -38,7 +37,6 @@ impl CallFrame {
 }
 
 pub struct Vm {
-    // ip: usize,
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
@@ -64,22 +62,10 @@ impl Vm {
         match parser.compile() {
             Ok(function) => {
                 self.frames.push(CallFrame::new(function));
-                return self.run();
+                self.run()
             }
             Err(_) => Err(InterpretError::CompileError),
         }
-    }
-
-    fn current_frame(&self) -> &CallFrame {
-        self.frames.last().expect("no current frame")
-    }
-
-    fn current_frame_mut(&mut self) -> &mut CallFrame {
-        self.frames.last_mut().expect("no current frame")
-    }
-
-    fn current_chunk(&self) -> &Chunk {
-        &self.current_frame().function.chunk
     }
 
     fn push(&mut self, value: Value) {
@@ -187,23 +173,19 @@ impl Vm {
     }
 
     fn run(&mut self) -> Result<(), InterpretError> {
-        let mut result = Err(InterpretError::Default);
         let mut frame = self.frames.pop().expect("no current chunk");
         loop {
             let instruction = frame.function.chunk.code[frame.ip];
-            if frame.ip == frame.function.chunk.len() {
-                break;
-            }
             // Enable this to see the chunk and stack
             frame.function.chunk.disassemble_instruction(frame.ip);
-            // self.print_stack();
+            self.print_stack();
             frame.ip += 1;
             match instruction {
-                OpCode::Return => result = Ok(()),
+                OpCode::Return => return Ok(()),
                 OpCode::Constant(v) => {
                     let val = &frame.function.chunk.constants[v];
                     self.push(val.clone());
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::Negative => {
                     match self.peek(0).expect("unable to peek value") {
@@ -218,7 +200,7 @@ impl Vm {
                         }
                     }
 
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::Add => {
                     if self.binary_operation(OpCode::Add).is_err() {
@@ -246,37 +228,37 @@ impl Vm {
                 }
                 OpCode::Nil => {
                     self.push(Value::Nil);
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::True => {
                     self.push(Value::Bool(true));
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::False => {
                     self.push(Value::Bool(false));
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::Not => {
                     let val = self.pop().expect("unable to pop value");
                     self.push(Value::Bool(is_falsey(&val)));
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::Equal => {
                     let b = self.pop();
                     let a = self.pop();
                     self.push(Value::Bool(a == b));
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::Greater => self.binary_operation(OpCode::Greater)?,
                 OpCode::Less => self.binary_operation(OpCode::Less)?,
                 OpCode::Pop => {
                     self.pop();
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::Print => {
                     let val = self.pop().expect("unable to pop value");
                     println!("Printing value of {}", val);
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::DefineGlobal(v) => {
                     if let Value::String(s) = &frame.function.chunk.constants[v] {
@@ -287,7 +269,7 @@ impl Vm {
                         let val = self.pop().expect("unable to pop value");
                         self.table.insert(key, val);
                     }
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::GetGlobal(v) => {
                     if let Value::String(s) = &frame.function.chunk.constants[v] {
@@ -305,7 +287,7 @@ impl Vm {
                             return Err(InterpretError::RuntimeError);
                         }
                     }
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::SetGlobal(v) => {
                     if let Value::String(s) = &frame.function.chunk.constants[v] {
@@ -329,47 +311,41 @@ impl Vm {
                             return Err(InterpretError::RuntimeError);
                         }
                     }
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::GetLocal(v) => {
                     let val = &self.stack.values[v];
                     self.push(val.clone());
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::SetLocal(v) => {
                     let val = self.peek(0).expect("unable to pop value");
                     self.stack.values[v] = val.clone();
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::JumpIfFalse(offset) => {
                     if is_falsey(self.peek(0).expect("unable to peek value")) {
                         frame.ip += offset as usize;
                     }
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::Jump(offset) => {
                     frame.ip += offset as usize;
-                    result = Ok(());
+                    return Ok(());
                 }
                 OpCode::Loop(offset) => {
                     frame.ip -= offset as usize;
                     // We need to subtract 1 from the ip because the ip will be incremented by 1
                     // at the end of the loop
                     frame.ip -= 1;
-                    result = Ok(());
+                    return Ok(());
                 }
                 _ => {
                     println!("Unknown operation code during interpreting!");
-                    result = Err(InterpretError::RuntimeError);
+                    return Err(InterpretError::RuntimeError);
                 }
             }
-
-            //FIXME - Can we come up with a better idea to exit the loop, then we might not need
-            //the instruction pointer at all.
-            frame.ip += 1;
         }
-
-        result
     }
 
     fn print_stack(&self) {

@@ -601,7 +601,7 @@ impl<'a> Parser<'a> {
                 .function
                 .chunk
                 .disassemble_chunk(&self.compiler.function.name.value);
-            return Ok(self.compiler.function);
+            Ok(self.compiler.function)
         } else {
             Err(())
         }
