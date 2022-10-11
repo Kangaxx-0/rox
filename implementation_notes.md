@@ -208,5 +208,7 @@ typedef enum {
 
 函数是一个可以被执行的独立单元，也就是说函数是字节码的合集，每个函数都有一个指针指向其字节码的第一个指令
 > A functuion is an execuable unit, so that means some bytecode. Each funtion would have a pointer to the first instruction of its code inside the Chunk.
-
+<aside name="header">
+<img src="https://github.com/Kangaxx-0/rox/blob/safe/assets/function-obj.drawio.png" alt="global" />
+</aside>
 
