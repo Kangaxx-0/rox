@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 // operation code.
-#[derive(Debug, Clone, Copy)]
+#[derive(PartialEq, PartialOrd, Eq, Debug, Clone, Copy)]
 pub enum OpCode {
     Add,
     Call(usize),

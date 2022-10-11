@@ -468,10 +468,6 @@ impl<'a> Parser<'a> {
             return;
         }
 
-        if self.compiler.local_count == 0 {
-            self.add_local(self.previous);
-        }
-
         let name =
             &self.scanner.bytes[self.previous.start..self.previous.start + self.previous.length];
         for i in (0..self.compiler.local_count).rev() {
@@ -605,7 +601,7 @@ impl<'a> Parser<'a> {
                 .function
                 .chunk
                 .disassemble_chunk(&self.compiler.function.name.value);
-            return Ok(self.compiler.function);
+            Ok(self.compiler.function)
         } else {
             Err(())
         }
@@ -832,7 +828,6 @@ mod tests {
     #[test]
     fn test_compile() {
         let source = "1 + 2;".as_bytes();
-        let mut chunk = Chunk::new();
         let parser = Parser::new(source);
         assert!(parser.compile().is_ok());
     }
@@ -840,7 +835,6 @@ mod tests {
     #[test]
     fn test_compile_negative() {
         let source = "-1;".as_bytes();
-        let mut chunk = Chunk::new();
         let parser = Parser::new(source);
         assert!(parser.compile().is_ok());
     }
@@ -848,7 +842,6 @@ mod tests {
     #[test]
     fn test_compile_grouping() {
         let source = "(1);".as_bytes();
-        let mut chunk = Chunk::new();
         let parser = Parser::new(source);
         assert!(parser.compile().is_ok());
     }
@@ -856,7 +849,6 @@ mod tests {
     #[test]
     fn test_compile_grouping_negative() {
         let source = "(-1);".as_bytes();
-        let mut chunk = Chunk::new();
         let parser = Parser::new(source);
         assert!(parser.compile().is_ok());
     }
@@ -864,7 +856,6 @@ mod tests {
     #[test]
     fn test_compile_grouping_negative_with_plus() {
         let source = "(-1 + 1);".as_bytes();
-        let mut chunk = Chunk::new();
         let parser = Parser::new(source);
         assert!(parser.compile().is_ok());
     }
@@ -872,7 +863,6 @@ mod tests {
     #[test]
     fn test_compile_grouping_negative_with_plus_and_multi() {
         let source = "(-1 + 1) * 2;".as_bytes();
-        let mut chunk = Chunk::new();
         let parser = Parser::new(source);
         assert!(parser.compile().is_ok());
     }
@@ -880,7 +870,6 @@ mod tests {
     #[test]
     fn test_compile_string() {
         let source = r#""hello";"#.as_bytes();
-        let mut chunk = Chunk::new();
         let parser = Parser::new(source);
         assert!(parser.compile().is_ok());
     }
@@ -888,136 +877,134 @@ mod tests {
     #[test]
     fn test_synchonize() {
         let source = r#"1 + &;"#.as_bytes();
-        let mut chunk = Chunk::new();
         let parser = Parser::new(source);
         assert!(!parser.compile().is_ok());
     }
 
-    // #[test]
-    // fn test_global() {
-    //     let source = r#"var a = 1;"#.as_bytes();
-    //     let mut chunk = Chunk::new();
-    //     let parser = Parser::new(source);
-    //     assert!(parser.compile().is_ok());
-    //     assert_eq!(2, chunk.constants.len());
-    //     // Constant, DefineGlobal,Return
-    //     assert_eq!(3, chunk.code.len());
-    // }
-    //
-    // #[test]
-    // fn test_scope() {
-    //     let source = r#"
-    //     {
-    //         var a = 1;
-    //     }
-    //     "#
-    //     .as_bytes();
-    //     let mut chunk = Chunk::new();
-    //     let parser = Parser::new(source);
-    //     assert!(parser.compile().is_ok());
-    //     assert_eq!(1, chunk.constants.len());
-    //     // Constant,Pop,Return
-    //     assert_eq!(3, chunk.code.len());
-    // }
-    //
-    // #[test]
-    // fn test_scope_nested() {
-    //     let source = r#"
-    //     {
-    //         var a = 1;
-    //         {
-    //             var a = 2;
-    //             print a;
-    //         }
-    //     }
-    //     "#
-    //     .as_bytes();
-    //     let mut chunk = Chunk::new();
-    //     let parser = Parser::new(source);
-    //     assert!(parser.compile().is_ok());
-    //     assert_eq!(2, chunk.constants.len());
-    //     // Constant, Constant, Print, GetLocal,Pop, Pop, Return
-    //     assert_eq!(7, chunk.code.len());
-    // }
-    //
-    // #[test]
-    // fn test_scope_fail() {
-    //     let source = r#"
-    //     {
-    //         var a = 1;
-    //         {
-    //             var a = 2;
-    //     }
-    //     "#
-    //     .as_bytes();
-    //     let mut chunk = Chunk::new();
-    //     let parser = Parser::new(source);
-    //     assert!(!parser.compile().is_ok());
-    // }
-    //
-    // #[test]
-    // fn test_if() {
-    //     let source = r#"
-    //     if (true) {
-    //         print "true";
-    //     }
-    //     "#
-    //     .as_bytes();
-    //     let mut chunk = Chunk::new();
-    //     let parser = Parser::new(source);
-    //     assert!(parser.compile().is_ok());
-    //     assert_eq!(1, chunk.constants.len());
-    //     assert_eq!(8, chunk.code.len());
-    // }
-    //
-    // #[test]
-    // fn test_if_else() {
-    //     let source = r#"
-    //     if (true) {
-    //         print "true";
-    //     } else {
-    //         print "false";
-    //     }
-    //     "#
-    //     .as_bytes();
-    //     let mut chunk = Chunk::new();
-    //     let parser = Parser::new(source);
-    //     assert!(parser.compile().is_ok());
-    //     assert_eq!(2, chunk.constants.len());
-    //     assert_eq!(10, chunk.code.len());
-    // }
-    //
-    // #[test]
-    // fn test_and() {
-    //     let source = r#"
-    //     if (true and false) {
-    //         print "true";
-    //     } else {
-    //         print "false";
-    //     }
-    //     "#
-    //     .as_bytes();
-    //     let mut chunk = Chunk::new();
-    //     let parser = Parser::new(source);
-    //     assert!(parser.compile().is_ok());
-    //     assert_eq!(2, chunk.constants.len());
-    //     assert_eq!(13, chunk.code.len());
-    // }
-    //
-    // #[test]
-    // fn test_or() {
-    //     let source = r#"
-    //     if (true or false) {
-    //         print "true";
-    //     } else {
-    //         print "false";
-    //     }
-    //     "#
-    //     .as_bytes();
-    //     let mut chunk = Chunk::new();
-    //     let parser = Parser::new(source);
-    //     assert!(parser.compile().is_ok());
-    //     assert_eq!(2, chunk.constants.len());
-    //     assert_eq!(13, chunk.code.len());
-    // }
+    #[test]
+    fn test_global() {
+        let source = r#"var a = 1;"#.as_bytes();
+        let parser = Parser::new(source);
+        let obj = parser.compile();
+        assert!(obj.is_ok());
+        assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
+        // Constant, DefineGlobal,Return
+        assert_eq!(3, obj.as_ref().unwrap().chunk.code.len());
+    }
+
+    #[test]
+    fn test_scope() {
+        let source = r#"
+        {
+            var a = 1;
+        }
+        "#
+        .as_bytes();
+        let parser = Parser::new(source);
+        let obj = parser.compile();
+        assert!(obj.is_ok());
+        assert_eq!(1, obj.as_ref().unwrap().chunk.constants.len());
+        // Constant,Pop,Return
+        assert_eq!(3, obj.as_ref().unwrap().chunk.code.len());
+    }
+
+    #[test]
+    fn test_scope_nested() {
+        let source = r#"
+        {
+            var a = 1;
+            {
+                var a = 2;
+                print a;
+            }
+        }
+        "#
+        .as_bytes();
+        let parser = Parser::new(source);
+        let obj = parser.compile();
+        assert!(obj.is_ok());
+        assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
+        // Constant, Constant, Print, GetLocal,Pop, Pop, Return
+        assert_eq!(7, obj.as_ref().unwrap().chunk.code.len());
+    }
+
+    #[test]
+    fn test_scope_fail() {
+        let source = r#"
+        {
+            var a = 1;
+            {
+                var a = 2;
+        }
+        "#
+        .as_bytes();
+        let parser = Parser::new(source);
+        assert!(!parser.compile().is_ok());
+    }
+
+    #[test]
+    fn test_if() {
+        let source = r#"
+        if (true) {
+            print "true";
+        }
+        "#
+        .as_bytes();
+        let parser = Parser::new(source);
+        let obj = parser.compile();
+        assert!(obj.is_ok());
+        assert_eq!(1, obj.as_ref().unwrap().chunk.constants.len());
+        assert_eq!(8, obj.as_ref().unwrap().chunk.code.len());
+    }
+
+    #[test]
+    fn test_if_else() {
+        let source = r#"
+        if (true) {
+            print "true";
+        } else {
+            print "false";
+        }
+        "#
+        .as_bytes();
+        let parser = Parser::new(source);
+        let obj = parser.compile();
+        assert!(obj.is_ok());
+        assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
+        assert_eq!(10, obj.as_ref().unwrap().chunk.code.len());
+    }
+
+    #[test]
+    fn test_and() {
+        let source = r#"
+        if (true and false) {
+            print "true";
+        } else {
+            print "false";
+        }
+        "#
+        .as_bytes();
+        let parser = Parser::new(source);
+        let obj = parser.compile();
+        assert!(obj.is_ok());
+        assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
+        assert_eq!(13, obj.as_ref().unwrap().chunk.code.len());
+    }
+
+    #[test]
+    fn test_or() {
+        let source = r#"
+        if (true or false) {
+            print "true";
+        } else {
+            print "false";
+        }
+        "#
+        .as_bytes();
+        let parser = Parser::new(source);
+        let obj = parser.compile();
+        assert!(obj.is_ok());
+        assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
+        assert_eq!(13, obj.as_ref().unwrap().chunk.code.len());
+    }
 }
