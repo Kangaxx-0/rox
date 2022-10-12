@@ -81,6 +81,7 @@ pub struct Compiler {
     scope_depth: i32,
     function: ObjFunction,
     function_type: FunctionType,
+    enclosing: Option<Box<Compiler>>, // each compiler points to the enclosing compiler
 }
 
 impl Compiler {
@@ -102,6 +103,7 @@ impl Compiler {
             scope_depth: 0,
             function: ObjFunction::new(name),
             function_type: types,
+            enclosing: None,
         }
     }
 }
@@ -463,6 +465,15 @@ impl<'a> Parser<'a> {
         self.patch_jump(end_jump);
     }
 
+    fn define_variable(&mut self, global: usize) {
+        if self.compiler.scope_depth > 0 {
+            self.mark_initialized();
+            return;
+        }
+
+        self.emit_byte(OpCode::DefineGlobal(global));
+    }
+
     fn declare_variable(&mut self) {
         if self.compiler.scope_depth == 0 {
             return;
@@ -607,6 +618,13 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn mark_initialized(&mut self) {
+        if self.compiler.scope_depth == 0 {
+            return;
+        }
+        self.compiler.locals[self.compiler.local_count - 1].depth = self.compiler.scope_depth;
+    }
+
     fn expression(&mut self) {
         self.parse_precedence(Precedence::Assignment);
     }
@@ -642,7 +660,64 @@ impl<'a> Parser<'a> {
         self.consume(TokenType::RightBrace, "Expect '}' after block.");
     }
 
-    fn parse_if(&mut self) {
+    // To handle compiling multiple functions nested within each other, we create a separate
+    // compiler for each function being compiled. This compiler is then pushed onto a stack
+    fn function(&mut self, kind: FunctionType) {
+        let compiler = Compiler::new(
+            convert_slice_to_string(
+                &self.scanner.bytes,
+                self.previous.start,
+                self.previous.start + self.previous.length,
+            ),
+            kind,
+        );
+        let old_cc = std::mem::replace(&mut self.compiler, compiler);
+        self.compiler.enclosing = Some(Box::new(old_cc));
+        self.begin_scope();
+
+        self.consume(TokenType::LeftParen, "Expect '(' after function name.");
+        if !self.check(TokenType::RightParen) {
+            loop {
+                self.compiler.function.arity += 1;
+                if self.compiler.function.arity > 255 as u8 {
+                    self.error_at_current("Cannot have more than 255 parameters.");
+                }
+                let constant = self.parse_variable("Expect parameter name.");
+                self.define_variable(constant);
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after function name.");
+        self.consume(TokenType::LeftBrace, "Expect '{' before function body.");
+        self.block();
+
+        self.emit_return();
+
+        if let Some(new_cc) = self.compiler.enclosing.take() {
+            let function = std::mem::replace(&mut self.compiler, *new_cc).function;
+            self.emit_constant(Value::Function(function));
+        }
+    }
+
+    fn var_declaration(&mut self) {
+        let index = self.parse_variable("Expect variable name.");
+        if self.match_token(TokenType::Equal) {
+            self.expression();
+        } else {
+            self.emit_byte(OpCode::Nil);
+        }
+
+        self.consume(
+            TokenType::Semicolon,
+            "Expect ';' after variable declaration.",
+        );
+
+        self.define_variable(index);
+    }
+
+    fn if_declaration(&mut self) {
         self.consume(TokenType::LeftParen, "Expect '(' after 'if'.");
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after condition.");
@@ -661,7 +736,7 @@ impl<'a> Parser<'a> {
         self.patch_jump(else_jump_idx);
     }
 
-    fn parse_while(&mut self) {
+    fn while_declaration(&mut self) {
         let loop_start = self.compiler.function.chunk.code.len() - 1;
         self.consume(TokenType::LeftParen, "Expect '(' after 'while'.");
         self.expression();
@@ -676,7 +751,7 @@ impl<'a> Parser<'a> {
         self.emit_byte(OpCode::Pop);
     }
 
-    fn parse_for(&mut self) {
+    fn for_declaration(&mut self) {
         // for loop var should be scoped
         self.begin_scope();
         self.consume(TokenType::LeftParen, "Expect '(' after 'for'.");
@@ -684,14 +759,14 @@ impl<'a> Parser<'a> {
         if self.match_token(TokenType::Semicolon) {
             // No initializer
         } else if self.match_token(TokenType::Var) {
-            self.define_variable();
+            self.var_declaration();
         } else {
             self.expression_statement();
         }
 
         let mut jump_idx = 0;
 
-        // Condition cluase
+        // Condition clause
         let mut loop_start = self.compiler.function.chunk.code.len() - 1;
         if !self.match_token(TokenType::Semicolon) {
             self.expression();
@@ -720,6 +795,13 @@ impl<'a> Parser<'a> {
         self.end_scope();
     }
 
+    fn fun_declaration(&mut self, kind: FunctionType) {
+        let global = self.parse_variable("Expect function name.");
+        self.mark_initialized();
+        self.function(kind);
+        self.define_variable(global);
+    }
+
     fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
             self.parse_print(true);
@@ -732,39 +814,17 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn define_variable(&mut self) {
-        let index = self.parse_variable("Expect variable name.");
-        if self.match_token(TokenType::Equal) {
-            self.expression();
-        } else {
-            self.emit_byte(OpCode::Nil);
-        }
-
-        self.consume(
-            TokenType::Semicolon,
-            "Expect ';' after variable declaration.",
-        );
-
-        if self.compiler.scope_depth > 0 {
-            self.mark_initialized();
-        } else {
-            self.emit_byte(OpCode::DefineGlobal(index));
-        }
-    }
-
-    fn mark_initialized(&mut self) {
-        self.compiler.locals[self.compiler.local_count - 1].depth = self.compiler.scope_depth;
-    }
-
     fn declaration(&mut self) {
         if self.match_token(TokenType::Var) {
-            self.define_variable();
+            self.var_declaration();
         } else if self.match_token(TokenType::If) {
-            self.parse_if();
+            self.if_declaration();
         } else if self.match_token(TokenType::While) {
-            self.parse_while();
+            self.while_declaration();
         } else if self.match_token(TokenType::For) {
-            self.parse_for();
+            self.for_declaration();
+        } else if self.match_token(TokenType::Fun) {
+            self.fun_declaration(FunctionType::Function);
         } else {
             self.statement();
         }

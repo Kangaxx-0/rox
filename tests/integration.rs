@@ -787,3 +787,16 @@ fn rox_for_local_scope() -> TestResult {
         "undefined variable 'i'",
     )
 }
+
+#[test]
+fn rox_func() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo() {
+                print "foo is a function";
+            }
+            print foo;
+        "#,
+        "foo is a function",
+    )
+}
