@@ -1,3 +1,4 @@
+use crate::chunk::Chunk;
 use crate::compiler::Parser;
 use crate::{
     hashtable::HashTable,
@@ -61,7 +62,8 @@ impl Vm {
         let parser = Parser::new(bytes.as_bytes());
         match parser.compile() {
             Ok(function) => {
-                self.frames.push(CallFrame::new(function));
+                self.push(Value::Function(function.clone()));
+                self.call(function, 0);
                 self.run()
             }
             Err(_) => Err(InterpretError::CompileError),
@@ -80,10 +82,43 @@ impl Vm {
         self.stack.peek(distance)
     }
 
-    fn runtime_error(&mut self, frame: &CallFrame, message: &str) {
+    fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
+        match callee {
+            Value::Function(function) => self.call(function, arg_count),
+            _ => {
+                println!("Can only call functions and classes.");
+                false
+            }
+        }
+    }
+
+    fn call(&mut self, function: ObjFunction, arg_count: usize) -> bool {
+        if arg_count != function.arity as usize {
+            println!(
+                "Expected {} arguments but got {}.",
+                function.arity, arg_count
+            );
+            return false;
+        }
+
+        if self.frame_count == FRAME_MAX {
+            println!("Stack overflow!");
+            return false;
+        }
+
+        let stack_top = self.stack.len() - arg_count - 1;
+        let mut frame = CallFrame::new(function);
+        frame.ip = 0;
+        frame.slots = stack_top;
+        self.frames.push(frame);
+        self.frame_count += 1;
+        true
+    }
+
+    fn runtime_error(&mut self, message: &str) {
         eprint!("Runtime error: {}", message);
 
-        let line = frame.function.chunk.lines[frame.ip - 1];
+        let line = self.current_line();
 
         eprintln!(" [line {}]", line);
 
@@ -172,19 +207,35 @@ impl Vm {
         }
     }
 
+    fn current_frame(&self) -> &CallFrame {
+        &self.frames[self.frame_count - 1]
+    }
+
+    fn current_frame_mut(&mut self) -> &mut CallFrame {
+        &mut self.frames[self.frame_count - 1]
+    }
+
+    fn current_chunk(&self) -> &Chunk {
+        &self.current_frame().function.chunk
+    }
+
+    fn current_line(&self) -> usize {
+        self.current_chunk().lines[self.current_frame().ip - 1]
+    }
+
     fn run(&mut self) -> Result<(), InterpretError> {
-        let mut frame = self.frames.pop().expect("no current chunk");
         loop {
-            let instruction = frame.function.chunk.code[frame.ip];
+            let instruction = self.current_chunk().code[self.current_frame().ip];
             // Enable this to see the chunk and stack
-            frame.function.chunk.disassemble_instruction(frame.ip);
+            self.current_chunk()
+                .disassemble_instruction(self.current_frame().ip);
             self.print_stack();
-            frame.ip += 1;
+            self.current_frame_mut().ip += 1;
             match instruction {
                 OpCode::Return => return Ok(()),
                 OpCode::Constant(v) => {
-                    let val = &frame.function.chunk.constants[v];
-                    self.push(val.clone());
+                    let val = self.current_chunk().constants[v].clone();
+                    self.push(val);
                 }
                 OpCode::Negative => match self.peek(0).expect("unable to peek value") {
                     Value::Number(_) => {
@@ -199,25 +250,25 @@ impl Vm {
                 },
                 OpCode::Add => {
                     if self.binary_operation(OpCode::Add).is_err() {
-                        self.runtime_error(&frame, "operands must be two numbers or two strings");
+                        self.runtime_error("operands must be two numbers or two strings");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Subtract => {
                     if self.binary_operation(OpCode::Subtract).is_err() {
-                        self.runtime_error(&frame, "operands must be two numbers");
+                        self.runtime_error("operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Multiply => {
                     if self.binary_operation(OpCode::Multiply).is_err() {
-                        self.runtime_error(&frame, "operands must be two numbers");
+                        self.runtime_error("operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
                 OpCode::Divide => {
                     if self.binary_operation(OpCode::Divide).is_err() {
-                        self.runtime_error(&frame, "operands must be two numbers");
+                        self.runtime_error("operands must be two numbers");
                         return Err(InterpretError::RuntimeError);
                     }
                 }
@@ -246,40 +297,44 @@ impl Vm {
                 }
                 OpCode::Print => {
                     let val = self.pop().expect("unable to pop value");
-                    println!("Printing value of {}", val);
+                    match val {
+                        Value::Function(v) => println!("{}", v.name.value),
+                        Value::String(v) => println!("Printing value of {}", v),
+                        Value::Number(v) => println!("Printing value of {}", v),
+                        Value::Bool(v) => println!("Printing value of {}", v),
+                        Value::Nil => println!("nil"),
+                        _ => println!("unknown value"),
+                    }
                 }
                 OpCode::DefineGlobal(v) => {
-                    if let Value::String(s) = &frame.function.chunk.constants[v] {
+                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
                         let key = HashKeyString {
-                            value: s.clone(),
                             hash: hash(s),
+                            value: s.to_string(),
                         };
                         let val = self.pop().expect("unable to pop value");
                         self.table.insert(key, val);
                     }
                 }
                 OpCode::GetGlobal(v) => {
-                    if let Value::String(s) = &frame.function.chunk.constants[v] {
+                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
                         let key = HashKeyString {
-                            value: s.clone(),
                             hash: hash(s),
+                            value: s.to_string(),
                         };
                         if let Some(val) = self.table.get(&key) {
                             self.push(val.clone());
                         } else {
-                            self.runtime_error(
-                                &frame,
-                                format!("undefined variable '{}'", s).as_str(),
-                            );
+                            self.runtime_error(format!("undefined variable '{}'", s).as_str());
                             return Err(InterpretError::RuntimeError);
                         }
                     }
                 }
                 OpCode::SetGlobal(v) => {
-                    if let Value::String(s) = &frame.function.chunk.constants[v] {
+                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
                         let key = HashKeyString {
-                            value: s.clone(),
                             hash: hash(s),
+                            value: s.to_string(),
                         };
                         if self.table.get(&key).is_some() {
                             // We do not want to pop the value off the stack because it might be
@@ -290,36 +345,44 @@ impl Vm {
                             self.table.insert(key, val.clone());
                         } else {
                             // when the key does note exist in the global has table, we throw a runtime error
-                            self.runtime_error(
-                                &frame,
-                                format!("undefined variable '{}'", s).as_str(),
-                            );
+                            self.runtime_error(format!("undefined variable '{}'", s).as_str());
                             return Err(InterpretError::RuntimeError);
                         }
                     }
                 }
                 OpCode::GetLocal(v) => {
-                    let val = &self.stack.values[v];
+                    let addr = self.current_frame().slots + v + 1;
+                    let val = &self.stack.values[addr];
                     self.push(val.clone());
                 }
                 OpCode::SetLocal(v) => {
+                    let addr = self.current_frame().slots + v + 1;
                     let val = self.peek(0).expect("unable to pop value");
-                    self.stack.values[v] = val.clone();
+                    self.stack.values[addr] = val.clone();
                 }
                 OpCode::JumpIfFalse(offset) => {
                     if is_falsey(self.peek(0).expect("unable to peek value")) {
-                        frame.ip += offset as usize;
+                        self.current_frame_mut().ip += offset as usize;
                     }
                 }
                 OpCode::Jump(offset) => {
-                    frame.ip += offset as usize;
+                    self.current_frame_mut().ip += offset as usize;
                 }
                 OpCode::Loop(offset) => {
-                    frame.ip -= offset as usize;
+                    self.current_frame_mut().ip -= offset as usize;
                     // We need to subtract 1 from the ip because the ip will be incremented by 1
                     // at the end of the loop
-                    frame.ip -= 1;
+                    self.current_frame_mut().ip -= 1;
                 }
+                OpCode::Call(arg_count) => {
+                    if !self.call_value(
+                        self.peek(arg_count).expect("unable to peek value").clone(),
+                        arg_count,
+                    ) {
+                        return Err(InterpretError::RuntimeError);
+                    }
+                }
+
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     return Err(InterpretError::RuntimeError);

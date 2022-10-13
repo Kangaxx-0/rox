@@ -797,6 +797,6 @@ fn rox_func() -> TestResult {
             }
             print foo;
         "#,
-        "foo is a function",
+        "foo",
     )
 }

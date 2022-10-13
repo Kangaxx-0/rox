@@ -259,42 +259,42 @@ impl<'a> Parser<'a> {
     fn get_rule(&mut self, t: TokenType) -> ParseRule<'a> {
         match t {
             TokenType::LeftParen => ParseRule {
-                prefix: Some(Parser::parse_grouping),
-                infix: None,
-                precedence: Precedence::No,
+                prefix: Some(Parser::grouping),
+                infix: Some(Parser::call),
+                precedence: Precedence::Call,
             },
             TokenType::Minus => ParseRule {
-                prefix: Some(Parser::parse_unary),
-                infix: Some(Parser::parse_binary),
+                prefix: Some(Parser::unary),
+                infix: Some(Parser::binary),
                 precedence: Precedence::Term,
             },
             TokenType::Bang => ParseRule {
-                prefix: Some(Parser::parse_unary),
+                prefix: Some(Parser::unary),
                 infix: None,
                 precedence: Precedence::Term,
             },
             TokenType::BangEqual | TokenType::EqualEqual => ParseRule {
                 prefix: None,
-                infix: Some(Parser::parse_binary),
+                infix: Some(Parser::binary),
                 precedence: Precedence::Equality,
             },
             TokenType::Plus => ParseRule {
                 prefix: None,
-                infix: Some(Parser::parse_binary),
+                infix: Some(Parser::binary),
                 precedence: Precedence::Term,
             },
             TokenType::Slash | TokenType::Star => ParseRule {
                 prefix: None,
-                infix: Some(Parser::parse_binary),
+                infix: Some(Parser::binary),
                 precedence: Precedence::Factor,
             },
             TokenType::Number => ParseRule {
-                prefix: Some(Parser::parse_number),
+                prefix: Some(Parser::number),
                 infix: None,
                 precedence: Precedence::No,
             },
             TokenType::Nil | TokenType::True | TokenType::False => ParseRule {
-                prefix: Some(Parser::parse_literal),
+                prefix: Some(Parser::literal),
                 infix: None,
                 precedence: Precedence::No,
             },
@@ -303,32 +303,32 @@ impl<'a> Parser<'a> {
             | TokenType::Less
             | TokenType::LessEqual => ParseRule {
                 prefix: None,
-                infix: Some(Parser::parse_binary),
+                infix: Some(Parser::binary),
                 precedence: Precedence::Comparison,
             },
             TokenType::Print => ParseRule {
-                prefix: Some(Parser::parse_print),
+                prefix: Some(Parser::print),
                 infix: None,
                 precedence: Precedence::No,
             },
             TokenType::Strings => ParseRule {
-                prefix: Some(Parser::parse_string),
+                prefix: Some(Parser::string),
                 infix: None,
                 precedence: Precedence::No,
             },
             TokenType::Identifier => ParseRule {
-                prefix: Some(Parser::variable),
+                prefix: Some(Parser::parse_variable),
                 infix: None,
                 precedence: Precedence::No,
             },
             TokenType::And => ParseRule {
                 prefix: None,
-                infix: Some(Parser::parse_and),
+                infix: Some(Parser::and),
                 precedence: Precedence::And,
             },
             TokenType::Or => ParseRule {
                 prefix: None,
-                infix: Some(Parser::parse_or),
+                infix: Some(Parser::or),
                 precedence: Precedence::Or,
             },
             _ => ParseRule {
@@ -365,7 +365,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_number(&mut self, _: bool) {
+    fn number(&mut self, _: bool) {
         let start = self.previous.start;
         let length = self.previous.length;
         let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
@@ -375,12 +375,12 @@ impl<'a> Parser<'a> {
         self.emit_constant(Value::Number(number));
     }
 
-    fn parse_grouping(&mut self, _: bool) {
+    fn grouping(&mut self, _: bool) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after expression");
     }
 
-    fn parse_unary(&mut self, _: bool) {
+    fn unary(&mut self, _: bool) {
         let operator_type = self.previous.t_type;
 
         self.parse_precedence(Precedence::Unary);
@@ -396,7 +396,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_binary(&mut self, _: bool) {
+    fn binary(&mut self, _: bool) {
         let operator_type = self.previous.t_type;
         let rule = self.get_rule(operator_type);
         self.parse_precedence(rule.precedence.next());
@@ -416,7 +416,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_literal(&mut self, _: bool) {
+    fn literal(&mut self, _: bool) {
         match self.previous.t_type {
             TokenType::False => self.emit_byte(OpCode::False),
             TokenType::True => self.emit_byte(OpCode::True),
@@ -425,20 +425,20 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_string(&mut self, _: bool) {
+    fn string(&mut self, _: bool) {
         let start = self.previous.start + 1;
         let length = self.previous.length - 2;
         let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
         self.emit_constant(Value::String(value));
     }
 
-    fn parse_print(&mut self, _: bool) {
+    fn print(&mut self, _: bool) {
         self.expression();
         self.consume(TokenType::Semicolon, "Expect ';' after value");
         self.emit_byte(OpCode::Print);
     }
 
-    fn parse_variable(&mut self, msg: &str) -> usize {
+    fn variable(&mut self, msg: &str) -> usize {
         self.consume(TokenType::Identifier, msg);
 
         self.declare_variable();
@@ -449,20 +449,44 @@ impl<'a> Parser<'a> {
         self.identifier_constant()
     }
 
-    fn parse_and(&mut self, _: bool) {
+    fn and(&mut self, _: bool) {
         let end_jump = self.emit_jump(OpCode::JumpIfFalse(0xff));
         self.emit_byte(OpCode::Pop);
         self.parse_precedence(Precedence::And);
         self.patch_if_false_jump(end_jump);
     }
 
-    fn parse_or(&mut self, _: bool) {
+    fn or(&mut self, _: bool) {
         let end_jump = self.emit_jump(OpCode::Jump(0xff));
 
         self.emit_byte(OpCode::Pop);
 
         self.parse_precedence(Precedence::Or);
         self.patch_jump(end_jump);
+    }
+
+    fn call(&mut self, _: bool) {
+        let arg_count = self.argument_list();
+        self.emit_byte(OpCode::Call(arg_count));
+    }
+
+    fn argument_list(&mut self) -> usize {
+        let mut arg_count = 0;
+        if !self.check(TokenType::RightParen) {
+            loop {
+                self.expression();
+                if arg_count == 255 {
+                    self.error("Cannot have more than 255 arguments.");
+                }
+                arg_count += 1;
+
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after arguments.");
+        arg_count
     }
 
     fn define_variable(&mut self, global: usize) {
@@ -512,7 +536,7 @@ impl<'a> Parser<'a> {
         self.compiler.local_count += 1;
     }
 
-    fn variable(&mut self, can_assign: bool) {
+    fn parse_variable(&mut self, can_assign: bool) {
         self.compile_named_variable(self.previous, can_assign);
     }
 
@@ -604,7 +628,7 @@ impl<'a> Parser<'a> {
         self.compiler.function.chunk.code.len() - 1
     }
 
-    fn end_compiler(mut self) -> Result<ObjFunction, ()> {
+    fn end_compiler(mut self) -> Result<ObjFunction, String> {
         self.emit_return();
 
         if !self.had_error {
@@ -614,7 +638,7 @@ impl<'a> Parser<'a> {
                 .disassemble_chunk(&self.compiler.function.name.value);
             Ok(self.compiler.function)
         } else {
-            Err(())
+            Err("Compile error".to_string())
         }
     }
 
@@ -665,7 +689,7 @@ impl<'a> Parser<'a> {
     fn function(&mut self, kind: FunctionType) {
         let compiler = Compiler::new(
             convert_slice_to_string(
-                &self.scanner.bytes,
+                self.scanner.bytes,
                 self.previous.start,
                 self.previous.start + self.previous.length,
             ),
@@ -679,10 +703,10 @@ impl<'a> Parser<'a> {
         if !self.check(TokenType::RightParen) {
             loop {
                 self.compiler.function.arity += 1;
-                if self.compiler.function.arity > 255 as u8 {
+                if self.compiler.function.arity == u8::MAX {
                     self.error_at_current("Cannot have more than 255 parameters.");
                 }
-                let constant = self.parse_variable("Expect parameter name.");
+                let constant = self.variable("Expect parameter name.");
                 self.define_variable(constant);
                 if !self.match_token(TokenType::Comma) {
                     break;
@@ -702,7 +726,7 @@ impl<'a> Parser<'a> {
     }
 
     fn var_declaration(&mut self) {
-        let index = self.parse_variable("Expect variable name.");
+        let index = self.variable("Expect variable name.");
         if self.match_token(TokenType::Equal) {
             self.expression();
         } else {
@@ -796,7 +820,7 @@ impl<'a> Parser<'a> {
     }
 
     fn fun_declaration(&mut self, kind: FunctionType) {
-        let global = self.parse_variable("Expect function name.");
+        let global = self.variable("Expect function name.");
         self.mark_initialized();
         self.function(kind);
         self.define_variable(global);
@@ -804,7 +828,7 @@ impl<'a> Parser<'a> {
 
     fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
-            self.parse_print(true);
+            self.print(true);
         } else if self.match_token(TokenType::LeftBrace) {
             self.begin_scope();
             self.block();
@@ -833,7 +857,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn compile(mut self) -> Result<ObjFunction, ()> {
+    pub fn compile(mut self) -> Result<ObjFunction, String> {
         self.next_valid_token();
 
         while self.current.t_type != TokenType::Eof {

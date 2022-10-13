@@ -88,6 +88,7 @@ impl Chunk {
             }
             OpCode::GetLocal(v) => self.constant_instruction("Get Local", Some(*v), offset, *line),
             OpCode::SetLocal(v) => self.constant_instruction("Set Local", Some(*v), offset, *line),
+            OpCode::Call(v) => self.constant_instruction("Function", Some(*v), offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
