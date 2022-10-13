@@ -297,7 +297,14 @@ impl Vm {
                 }
                 OpCode::Print => {
                     let val = self.pop().expect("unable to pop value");
-                    println!("Printing value of {}", val);
+                    match val {
+                        Value::Function(v) => println!("{}", v.name.value),
+                        Value::String(v) => println!("Printing value of {}", v),
+                        Value::Number(v) => println!("Printing value of {}", v),
+                        Value::Bool(v) => println!("Printing value of {}", v),
+                        Value::Nil => println!("nil"),
+                        _ => println!("unknown value"),
+                    }
                 }
                 OpCode::DefineGlobal(v) => {
                     if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
