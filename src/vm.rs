@@ -62,6 +62,7 @@ impl Vm {
         let parser = Parser::new(bytes.as_bytes());
         match parser.compile() {
             Ok(function) => {
+                // script function is always at the top of the stack
                 self.push(Value::Function(function.clone()));
                 self.call(function, 0);
                 self.run()
@@ -84,6 +85,7 @@ impl Vm {
 
     fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
         match callee {
+            // call a function will push the callee to call frame which represents a single ongoing function call
             Value::Function(function) => self.call(function, arg_count),
             _ => {
                 println!("Can only call functions and classes.");
@@ -106,6 +108,7 @@ impl Vm {
             return false;
         }
 
+        // calculate the stack start slot for the function
         let stack_top = self.stack.len() - arg_count - 1;
         let mut frame = CallFrame::new(function);
         frame.ip = 0;
@@ -121,6 +124,12 @@ impl Vm {
         let line = self.current_line();
 
         eprintln!(" [line {}]", line);
+
+        for frame in self.frames.iter().rev() {
+            let function = &frame.function;
+            let line = function.chunk.lines[frame.ip - 1];
+            eprintln!("[line {}] in {}", line, function.name.value);
+        }
 
         self.stack.reset();
     }
@@ -227,12 +236,25 @@ impl Vm {
         loop {
             let instruction = self.current_chunk().code[self.current_frame().ip];
             // Enable this to see the chunk and stack
-            self.current_chunk()
-                .disassemble_instruction(self.current_frame().ip);
-            self.print_stack();
+            // self.current_chunk()
+            //     .disassemble_instruction(self.current_frame().ip);
+            // self.print_stack();
             self.current_frame_mut().ip += 1;
             match instruction {
-                OpCode::Return => return Ok(()),
+                OpCode::Return => {
+                    let res = self.pop().expect("unable to pop value");
+                    self.frame_count -= 1;
+                    if self.frame_count == 0 {
+                        // we've finished executing the top-level code. We are done
+                        // self.pop().expect("unable to pop value");
+                        return Ok(());
+                    }
+
+                    // the call is done, the caller does not need it anymore, the top of the stack
+                    // ends up right at the beginning of the returning function's stack window
+                    self.stack.values.truncate(self.current_frame().slots);
+                    self.push(res);
+                }
                 OpCode::Constant(v) => {
                     let val = self.current_chunk().constants[v].clone();
                     self.push(val);

@@ -70,6 +70,7 @@ struct Local {
     depth: i32,
 }
 
+#[derive(PartialEq, Eq)]
 enum FunctionType {
     Function,
     Script,
@@ -608,6 +609,7 @@ impl<'a> Parser<'a> {
     }
 
     fn emit_return(&mut self) {
+        self.emit_byte(OpCode::Nil);
         self.emit_byte(OpCode::Return);
     }
 
@@ -725,7 +727,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn var_declaration(&mut self) {
+    fn var_statement(&mut self) {
         let index = self.variable("Expect variable name.");
         if self.match_token(TokenType::Equal) {
             self.expression();
@@ -741,7 +743,7 @@ impl<'a> Parser<'a> {
         self.define_variable(index);
     }
 
-    fn if_declaration(&mut self) {
+    fn if_statement(&mut self) {
         self.consume(TokenType::LeftParen, "Expect '(' after 'if'.");
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after condition.");
@@ -760,7 +762,7 @@ impl<'a> Parser<'a> {
         self.patch_jump(else_jump_idx);
     }
 
-    fn while_declaration(&mut self) {
+    fn while_statement(&mut self) {
         let loop_start = self.compiler.function.chunk.code.len() - 1;
         self.consume(TokenType::LeftParen, "Expect '(' after 'while'.");
         self.expression();
@@ -775,7 +777,7 @@ impl<'a> Parser<'a> {
         self.emit_byte(OpCode::Pop);
     }
 
-    fn for_declaration(&mut self) {
+    fn for_statement(&mut self) {
         // for loop var should be scoped
         self.begin_scope();
         self.consume(TokenType::LeftParen, "Expect '(' after 'for'.");
@@ -783,7 +785,7 @@ impl<'a> Parser<'a> {
         if self.match_token(TokenType::Semicolon) {
             // No initializer
         } else if self.match_token(TokenType::Var) {
-            self.var_declaration();
+            self.var_statement();
         } else {
             self.expression_statement();
         }
@@ -819,11 +821,24 @@ impl<'a> Parser<'a> {
         self.end_scope();
     }
 
-    fn fun_declaration(&mut self, kind: FunctionType) {
+    fn fun_statement(&mut self, kind: FunctionType) {
         let global = self.variable("Expect function name.");
         self.mark_initialized();
         self.function(kind);
         self.define_variable(global);
+    }
+
+    fn return_statement(&mut self) {
+        if self.compiler.function_type == FunctionType::Script {
+            self.error_at_current("Cannot return a value from an initializer.");
+        }
+        if self.match_token(TokenType::Semicolon) {
+            self.emit_return();
+        } else {
+            self.expression();
+            self.consume(TokenType::Semicolon, "Expect ';' after return value.");
+            self.emit_byte(OpCode::Return);
+        }
     }
 
     fn statement(&mut self) {
@@ -840,15 +855,17 @@ impl<'a> Parser<'a> {
 
     fn declaration(&mut self) {
         if self.match_token(TokenType::Var) {
-            self.var_declaration();
+            self.var_statement();
         } else if self.match_token(TokenType::If) {
-            self.if_declaration();
+            self.if_statement();
         } else if self.match_token(TokenType::While) {
-            self.while_declaration();
+            self.while_statement();
         } else if self.match_token(TokenType::For) {
-            self.for_declaration();
+            self.for_statement();
         } else if self.match_token(TokenType::Fun) {
-            self.fun_declaration(FunctionType::Function);
+            self.fun_statement(FunctionType::Function);
+        } else if self.match_token(TokenType::Return) {
+            self.return_statement();
         } else {
             self.statement();
         }
@@ -972,8 +989,8 @@ mod tests {
         let obj = parser.compile();
         assert!(obj.is_ok());
         assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
-        // Constant, DefineGlobal,Return
-        assert_eq!(3, obj.as_ref().unwrap().chunk.code.len());
+        // Constant, DefineGlobal,Nil,Return
+        assert_eq!(4, obj.as_ref().unwrap().chunk.code.len());
     }
 
     #[test]
@@ -988,8 +1005,8 @@ mod tests {
         let obj = parser.compile();
         assert!(obj.is_ok());
         assert_eq!(1, obj.as_ref().unwrap().chunk.constants.len());
-        // Constant,Pop,Return
-        assert_eq!(3, obj.as_ref().unwrap().chunk.code.len());
+        // Constant,Pop,Nil,Return
+        assert_eq!(4, obj.as_ref().unwrap().chunk.code.len());
     }
 
     #[test]
@@ -1008,8 +1025,8 @@ mod tests {
         let obj = parser.compile();
         assert!(obj.is_ok());
         assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
-        // Constant, Constant, Print, GetLocal,Pop, Pop, Return
-        assert_eq!(7, obj.as_ref().unwrap().chunk.code.len());
+        // Constant, Constant, Print, GetLocal,Pop, Pop, Nil,Return
+        assert_eq!(8, obj.as_ref().unwrap().chunk.code.len());
     }
 
     #[test]
@@ -1038,7 +1055,7 @@ mod tests {
         let obj = parser.compile();
         assert!(obj.is_ok());
         assert_eq!(1, obj.as_ref().unwrap().chunk.constants.len());
-        assert_eq!(8, obj.as_ref().unwrap().chunk.code.len());
+        assert_eq!(9, obj.as_ref().unwrap().chunk.code.len());
     }
 
     #[test]
@@ -1055,7 +1072,7 @@ mod tests {
         let obj = parser.compile();
         assert!(obj.is_ok());
         assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
-        assert_eq!(10, obj.as_ref().unwrap().chunk.code.len());
+        assert_eq!(11, obj.as_ref().unwrap().chunk.code.len());
     }
 
     #[test]
@@ -1072,7 +1089,7 @@ mod tests {
         let obj = parser.compile();
         assert!(obj.is_ok());
         assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
-        assert_eq!(13, obj.as_ref().unwrap().chunk.code.len());
+        assert_eq!(14, obj.as_ref().unwrap().chunk.code.len());
     }
 
     #[test]
@@ -1089,6 +1106,6 @@ mod tests {
         let obj = parser.compile();
         assert!(obj.is_ok());
         assert_eq!(2, obj.as_ref().unwrap().chunk.constants.len());
-        assert_eq!(13, obj.as_ref().unwrap().chunk.code.len());
+        assert_eq!(14, obj.as_ref().unwrap().chunk.code.len());
     }
 }
