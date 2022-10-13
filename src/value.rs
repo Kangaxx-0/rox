@@ -1,12 +1,15 @@
 use std::fmt::Display;
 
-#[derive(Debug, Clone, PartialEq)]
+use crate::objects::ObjFunction;
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Value {
     Deault,
     Bool(bool),
     Nil,
     Number(f64),
     String(String),
+    Function(ObjFunction),
 }
 
 impl Display for Value {
@@ -17,6 +20,7 @@ impl Display for Value {
             Value::Nil => write!(f, "Nil"),
             Value::Number(n) => write!(f, "{}", n),
             Value::String(s) => write!(f, "{}", s),
+            _ => write!(f, "Function"),
         }
     }
 }

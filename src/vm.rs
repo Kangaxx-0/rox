@@ -1,12 +1,15 @@
+use crate::chunk::Chunk;
+use crate::compiler::Parser;
 use crate::{
-    chunk::Chunk,
-    compiler::Parser,
-    hashtable::{HashKeyString, HashTable},
+    hashtable::HashTable,
+    objects::{HashKeyString, ObjFunction},
     op_code::OpCode,
     stack::Stack,
-    utils::is_falsey,
+    utils::{hash, is_falsey},
     value::Value,
 };
+
+const FRAME_MAX: usize = 64;
 
 #[derive(Debug)]
 pub enum InterpretError {
@@ -15,20 +18,39 @@ pub enum InterpretError {
     Default,
 }
 
+#[derive(Clone, Debug)]
+// represents a single ongoing function call
+// TODO - function calla are a core operation, can we do not use heap allocation here?
+pub struct CallFrame {
+    function: ObjFunction,
+    ip: usize,    // when we return from a function, caller needs to know where to resume
+    slots: usize, // points to vm stack at the first slot function can use
+}
+
+impl CallFrame {
+    pub fn new(function: ObjFunction) -> Self {
+        Self {
+            function,
+            ip: 0,
+            slots: 0,
+        }
+    }
+}
+
 pub struct Vm {
-    chunk: Chunk,
-    ip: usize,
     stack: Stack,
     table: HashTable,
+    frames: Vec<CallFrame>,
+    frame_count: usize, // current height of the call frame stack - the number of ongoing calls.
 }
 
 impl Vm {
     pub fn new() -> Self {
         Self {
-            chunk: Chunk::new(),
-            ip: 0,
             stack: Stack::new(),
             table: HashTable::new(),
+            frames: Vec::with_capacity(FRAME_MAX),
+            frame_count: 0,
         }
     }
 
@@ -37,47 +59,217 @@ impl Vm {
     }
 
     pub fn interpret(&mut self, bytes: &str) -> Result<(), InterpretError> {
-        let mut parser = Parser::new(bytes.as_bytes(), &mut self.chunk);
-        if !parser.compile() {
-            return Err(InterpretError::CompileError);
+        let parser = Parser::new(bytes.as_bytes());
+        match parser.compile() {
+            Ok(function) => {
+                // script function is always at the top of the stack
+                self.push(Value::Function(function.clone()));
+                self.call(function, 0);
+                self.run()
+            }
+            Err(_) => Err(InterpretError::CompileError),
+        }
+    }
+
+    fn push(&mut self, value: Value) {
+        self.stack.push(value);
+    }
+
+    fn pop(&mut self) -> Option<Value> {
+        self.stack.pop()
+    }
+
+    fn peek(&self, distance: usize) -> Option<&Value> {
+        self.stack.peek(distance)
+    }
+
+    fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
+        match callee {
+            // call a function will push the callee to call frame which represents a single ongoing function call
+            Value::Function(function) => self.call(function, arg_count),
+            _ => {
+                println!("Can only call functions and classes.");
+                false
+            }
+        }
+    }
+
+    fn call(&mut self, function: ObjFunction, arg_count: usize) -> bool {
+        if arg_count != function.arity as usize {
+            println!(
+                "Expected {} arguments but got {}.",
+                function.arity, arg_count
+            );
+            return false;
         }
 
-        self.run()
+        if self.frame_count == FRAME_MAX {
+            println!("Stack overflow!");
+            return false;
+        }
+
+        // calculate the stack start slot for the function
+        let stack_top = self.stack.len() - arg_count - 1;
+        let mut frame = CallFrame::new(function);
+        frame.ip = 0;
+        frame.slots = stack_top;
+        self.frames.push(frame);
+        self.frame_count += 1;
+        true
+    }
+
+    fn runtime_error(&mut self, message: &str) {
+        eprint!("Runtime error: {}", message);
+
+        let line = self.current_line();
+
+        eprintln!(" [line {}]", line);
+
+        for frame in self.frames.iter().rev() {
+            let function = &frame.function;
+            let line = function.chunk.lines[frame.ip - 1];
+            eprintln!("[line {}] in {}", line, function.name.value);
+        }
+
+        self.stack.reset();
+    }
+
+    fn binary_operation(&mut self, code: OpCode) -> Result<(), InterpretError> {
+        let (v1, v2) = (
+            self.pop().expect("unable to pop value"),
+            self.pop().expect("unable to pop value"),
+        );
+        match code {
+            //FIXME - Refactor and simplify the code later
+            OpCode::Add => {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
+                    let result = x2 + x1;
+                    self.push(Value::Number(result));
+                    Ok(())
+                } else if let (Value::String(x1), Value::String(x2)) = (&v1, &v2) {
+                    let mut result = x2.clone();
+                    result.push_str(x1);
+                    self.push(Value::String(result));
+                    Ok(())
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    Err(InterpretError::RuntimeError)
+                }
+            }
+            OpCode::Subtract => {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
+                    let result = x2 - x1;
+                    self.push(Value::Number(result));
+                    Ok(())
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    Err(InterpretError::RuntimeError)
+                }
+            }
+            OpCode::Multiply => {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
+                    let result = x2 * x1;
+                    self.push(Value::Number(result));
+                    Ok(())
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    Err(InterpretError::RuntimeError)
+                }
+            }
+            OpCode::Divide => {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
+                    let result = x2 / x1;
+                    self.push(Value::Number(result));
+                    Ok(())
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    Err(InterpretError::RuntimeError)
+                }
+            }
+            OpCode::Greater => {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
+                    let result = x2 > x1;
+                    self.push(Value::Bool(result));
+                    Ok(())
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    Err(InterpretError::RuntimeError)
+                }
+            }
+            OpCode::Less => {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
+                    let result = x2 < x1;
+                    self.push(Value::Bool(result));
+                    Ok(())
+                } else {
+                    self.push(v1);
+                    self.push(v2);
+                    Err(InterpretError::RuntimeError)
+                }
+            }
+            _ => Err(InterpretError::RuntimeError),
+        }
+    }
+
+    fn current_frame(&self) -> &CallFrame {
+        &self.frames[self.frame_count - 1]
+    }
+
+    fn current_frame_mut(&mut self) -> &mut CallFrame {
+        &mut self.frames[self.frame_count - 1]
+    }
+
+    fn current_chunk(&self) -> &Chunk {
+        &self.current_frame().function.chunk
+    }
+
+    fn current_line(&self) -> usize {
+        self.current_chunk().lines[self.current_frame().ip - 1]
     }
 
     fn run(&mut self) -> Result<(), InterpretError> {
-        let mut result = Err(InterpretError::Default);
         loop {
-            if self.ip == self.chunk.len() {
-                break;
-            }
-            let chunk = &self.chunk;
+            let instruction = self.current_chunk().code[self.current_frame().ip];
             // Enable this to see the chunk and stack
-            self.chunk.disassemble_instruction(self.ip);
+            // self.current_chunk()
+            //     .disassemble_instruction(self.current_frame().ip);
             self.print_stack();
-            match &chunk.code[self.ip] {
-                OpCode::Return => result = Ok(()),
-                OpCode::Constant(v) => {
-                    let val = &self.chunk.constants[*v];
-                    self.stack.push(val.clone());
-                    result = Ok(());
-                }
-                OpCode::Negative => {
-                    match self.stack.peek(0).expect("unable to peek value") {
-                        Value::Number(_) => {
-                            if let Value::Number(v) = self.stack.pop().expect("unable to pop value")
-                            {
-                                self.stack.push(Value::Number(-v));
-                            }
-                        }
-                        _ => {
-                            println!("operand must be a number");
-                            return Err(InterpretError::RuntimeError);
-                        }
+            self.current_frame_mut().ip += 1;
+            match instruction {
+                OpCode::Return => {
+                    let res = self.pop().expect("unable to pop value");
+                    self.frame_count -= 1;
+                    if self.frame_count == 0 {
+                        // we've finished executing the top-level code. We are done
+                        // self.pop().expect("unable to pop value");
+                        return Ok(());
                     }
 
-                    result = Ok(());
+                    // the call is done, the caller does not need it anymore, the top of the stack
+                    // ends up right at the beginning of the returning function's stack window
+                    self.stack.values.truncate(self.current_frame().slots);
+                    self.push(res);
                 }
+                OpCode::Constant(v) => {
+                    let val = self.current_chunk().constants[v].clone();
+                    self.push(val);
+                }
+                OpCode::Negative => match self.peek(0).expect("unable to peek value") {
+                    Value::Number(_) => {
+                        if let Value::Number(v) = self.pop().expect("unable to pop value") {
+                            self.push(Value::Number(-v));
+                        }
+                    }
+                    _ => {
+                        println!("operand must be a number");
+                        return Err(InterpretError::RuntimeError);
+                    }
+                },
                 OpCode::Add => {
                     if self.binary_operation(OpCode::Add).is_err() {
                         self.runtime_error("operands must be two numbers or two strings");
@@ -103,76 +295,74 @@ impl Vm {
                     }
                 }
                 OpCode::Nil => {
-                    self.stack.push(Value::Nil);
-                    result = Ok(());
+                    self.push(Value::Nil);
                 }
                 OpCode::True => {
-                    self.stack.push(Value::Bool(true));
-                    result = Ok(());
+                    self.push(Value::Bool(true));
                 }
                 OpCode::False => {
-                    self.stack.push(Value::Bool(false));
-                    result = Ok(());
+                    self.push(Value::Bool(false));
                 }
                 OpCode::Not => {
-                    let val = self.stack.pop().expect("unable to pop value");
-                    self.stack.push(Value::Bool(is_falsey(&val)));
-                    result = Ok(());
+                    let val = self.pop().expect("unable to pop value");
+                    self.push(Value::Bool(is_falsey(&val)));
                 }
                 OpCode::Equal => {
-                    let b = self.stack.pop();
-                    let a = self.stack.pop();
-                    self.stack.push(Value::Bool(a == b));
-                    result = Ok(());
+                    let b = self.pop();
+                    let a = self.pop();
+                    self.push(Value::Bool(a == b));
                 }
                 OpCode::Greater => self.binary_operation(OpCode::Greater)?,
                 OpCode::Less => self.binary_operation(OpCode::Less)?,
                 OpCode::Pop => {
-                    self.stack.pop();
-                    result = Ok(());
+                    self.pop();
                 }
                 OpCode::Print => {
-                    let val = self.stack.pop().expect("unable to pop value");
-                    println!("Printing value of {}", val);
-                    result = Ok(());
+                    let val = self.pop().expect("unable to pop value");
+                    match val {
+                        Value::Function(v) => println!("{}", v.name.value),
+                        Value::String(v) => println!("Printing value of {}", v),
+                        Value::Number(v) => println!("Printing value of {}", v),
+                        Value::Bool(v) => println!("Printing value of {}", v),
+                        Value::Nil => println!("nil"),
+                        _ => println!("unknown value"),
+                    }
                 }
                 OpCode::DefineGlobal(v) => {
-                    if let Value::String(s) = &self.chunk.constants[*v] {
+                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
                         let key = HashKeyString {
-                            value: s.clone(),
-                            hash: HashTable::hash(s),
+                            hash: hash(s),
+                            value: s.to_string(),
                         };
-                        self.table
-                            .insert(key, self.stack.pop().expect("unable to pop value"));
+                        let val = self.pop().expect("unable to pop value");
+                        self.table.insert(key, val);
                     }
-                    result = Ok(());
                 }
                 OpCode::GetGlobal(v) => {
-                    if let Value::String(s) = &self.chunk.constants[*v] {
+                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
                         let key = HashKeyString {
-                            value: s.clone(),
-                            hash: HashTable::hash(s),
+                            hash: hash(s),
+                            value: s.to_string(),
                         };
                         if let Some(val) = self.table.get(&key) {
-                            self.stack.push(val.clone());
+                            self.push(val.clone());
                         } else {
                             self.runtime_error(format!("undefined variable '{}'", s).as_str());
                             return Err(InterpretError::RuntimeError);
                         }
                     }
-                    result = Ok(());
                 }
                 OpCode::SetGlobal(v) => {
-                    if let Value::String(s) = &self.chunk.constants[*v] {
+                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
                         let key = HashKeyString {
-                            value: s.clone(),
-                            hash: HashTable::hash(s),
+                            hash: hash(s),
+                            value: s.to_string(),
                         };
                         if self.table.get(&key).is_some() {
                             // We do not want to pop the value off the stack because it might be
                             // re-used in other places. e.g. a = 1; b = a + 1; c = 2+a; print c;
                             // should print 3
-                            let val = self.stack.peek(0).expect("unable to peek value");
+                            let val = self.peek(0).expect("unable to peek value");
                             // insert would replace the value with the same key
                             self.table.insert(key, val.clone());
                         } else {
@@ -181,139 +371,45 @@ impl Vm {
                             return Err(InterpretError::RuntimeError);
                         }
                     }
-                    result = Ok(());
                 }
                 OpCode::GetLocal(v) => {
-                    let val = &self.stack.values[*v];
-                    self.stack.push(val.clone());
-                    result = Ok(());
+                    let addr = self.current_frame().slots + v + 1;
+                    let val = &self.stack.values[addr];
+                    self.push(val.clone());
                 }
                 OpCode::SetLocal(v) => {
-                    let val = self.stack.peek(0).expect("unable to pop value");
-                    self.stack.values[*v] = val.clone();
-                    result = Ok(());
+                    let addr = self.current_frame().slots + v + 1;
+                    let val = self.peek(0).expect("unable to pop value");
+                    self.stack.values[addr] = val.clone();
                 }
                 OpCode::JumpIfFalse(offset) => {
-                    if is_falsey(self.stack.peek(0).expect("unable to peek value")) {
-                        self.ip += *offset as usize;
+                    if is_falsey(self.peek(0).expect("unable to peek value")) {
+                        self.current_frame_mut().ip += offset as usize;
                     }
-                    result = Ok(());
                 }
                 OpCode::Jump(offset) => {
-                    self.ip += *offset as usize;
-                    result = Ok(());
+                    self.current_frame_mut().ip += offset as usize;
                 }
                 OpCode::Loop(offset) => {
-                    self.ip -= *offset as usize;
+                    self.current_frame_mut().ip -= offset as usize;
                     // We need to subtract 1 from the ip because the ip will be incremented by 1
                     // at the end of the loop
-                    self.ip -= 1;
-                    result = Ok(());
+                    self.current_frame_mut().ip -= 1;
                 }
+                OpCode::Call(arg_count) => {
+                    if !self.call_value(
+                        self.peek(arg_count).expect("unable to peek value").clone(),
+                        arg_count,
+                    ) {
+                        return Err(InterpretError::RuntimeError);
+                    }
+                }
+
                 _ => {
                     println!("Unknown operation code during interpreting!");
-                    result = Err(InterpretError::RuntimeError);
+                    return Err(InterpretError::RuntimeError);
                 }
             }
-
-            //FIXME - Can we come up with a better idea to exit the loop, then we might not need
-            //the instruction pointer at all.
-            self.ip += 1;
-        }
-
-        result
-    }
-
-    fn runtime_error(&mut self, message: &str) {
-        eprint!("Runtime error: {}", message);
-
-        let instruction = self.ip - self.chunk.code.len() - 1;
-        let line = self.chunk.lines[instruction];
-
-        eprintln!(" [line {}]", line);
-
-        self.stack.reset();
-    }
-
-    fn binary_operation(&mut self, code: OpCode) -> Result<(), InterpretError> {
-        let (v1, v2) = (
-            self.stack.pop().expect("unable to pop value"),
-            self.stack.pop().expect("unable to pop value"),
-        );
-        match code {
-            //FIXME - Refactor and simplify the code later
-            OpCode::Add => {
-                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
-                    let result = x2 + x1;
-                    self.stack.push(Value::Number(result));
-                    Ok(())
-                } else if let (Value::String(x1), Value::String(x2)) = (&v1, &v2) {
-                    let mut result = x2.clone();
-                    result.push_str(x1);
-                    self.stack.push(Value::String(result));
-                    Ok(())
-                } else {
-                    self.stack.push(v1);
-                    self.stack.push(v2);
-                    Err(InterpretError::RuntimeError)
-                }
-            }
-            OpCode::Subtract => {
-                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
-                    let result = x2 - x1;
-                    self.stack.push(Value::Number(result));
-                    Ok(())
-                } else {
-                    self.stack.push(v1);
-                    self.stack.push(v2);
-                    Err(InterpretError::RuntimeError)
-                }
-            }
-            OpCode::Multiply => {
-                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
-                    let result = x2 * x1;
-                    self.stack.push(Value::Number(result));
-                    Ok(())
-                } else {
-                    self.stack.push(v1);
-                    self.stack.push(v2);
-                    Err(InterpretError::RuntimeError)
-                }
-            }
-            OpCode::Divide => {
-                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
-                    let result = x2 / x1;
-                    self.stack.push(Value::Number(result));
-                    Ok(())
-                } else {
-                    self.stack.push(v1);
-                    self.stack.push(v2);
-                    Err(InterpretError::RuntimeError)
-                }
-            }
-            OpCode::Greater => {
-                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
-                    let result = x2 > x1;
-                    self.stack.push(Value::Bool(result));
-                    Ok(())
-                } else {
-                    self.stack.push(v1);
-                    self.stack.push(v2);
-                    Err(InterpretError::RuntimeError)
-                }
-            }
-            OpCode::Less => {
-                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
-                    let result = x2 < x1;
-                    self.stack.push(Value::Bool(result));
-                    Ok(())
-                } else {
-                    self.stack.push(v1);
-                    self.stack.push(v2);
-                    Err(InterpretError::RuntimeError)
-                }
-            }
-            _ => Err(InterpretError::RuntimeError),
         }
     }
 

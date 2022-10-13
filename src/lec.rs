@@ -12,22 +12,22 @@ compiling a chunk, it must be dynamic,so we want to implement a Vec for Lox
     - Constant-time appending to the end of the array
 */
 
-pub struct Lec<T> {
+pub struct Vec<T> {
     ptr: NonNull<T>,
     cap: usize,
     len: usize,
     _maker: PhantomData<T>,
 }
 
-unsafe impl<T: Send> Send for Lec<T> {}
-unsafe impl<T: Sync> Sync for Lec<T> {}
+unsafe impl<T: Send> Send for Vec<T> {}
+unsafe impl<T: Sync> Sync for Vec<T> {}
 
 // for warning's sake
 #[allow(dead_code)]
-impl<T> Lec<T> {
+impl<T> Vec<T> {
     pub fn new() -> Self {
         assert!(mem::size_of::<T>() != 0, "We're not ready to handle ZSTs");
-        Lec {
+        Vec {
             ptr: NonNull::dangling(),
             cap: 0,
             len: 0,
@@ -104,7 +104,7 @@ impl<T> Lec<T> {
     }
 }
 
-impl<T> Drop for Lec<T> {
+impl<T> Drop for Vec<T> {
     fn drop(&mut self) {
         if self.cap != 0 {
             while self.pop().is_some() {}
@@ -116,13 +116,13 @@ impl<T> Drop for Lec<T> {
     }
 }
 
-impl<T> Default for Lec<T> {
+impl<T> Default for Vec<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> Deref for Lec<T> {
+impl<T> Deref for Vec<T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
@@ -130,7 +130,7 @@ impl<T> Deref for Lec<T> {
     }
 }
 
-impl<T> DerefMut for Lec<T> {
+impl<T> DerefMut for Vec<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
     }
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn new() {
-        let lec: Lec<u8> = Lec::new();
+        let lec: Vec<u8> = Vec::new();
 
         assert_eq!(0, lec.len);
         assert_eq!(0, lec.len());
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn push_and_pop() {
-        let mut lec: Lec<u8> = Lec::new();
+        let mut lec: Vec<u8> = Vec::new();
 
         assert_eq!(0, lec.len());
         assert_eq!(0, lec.capacity());

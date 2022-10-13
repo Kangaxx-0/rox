@@ -2,15 +2,10 @@
 
 use std::fmt::Display;
 
+use crate::objects::HashKeyString;
 use crate::value::Value;
 
 const TABLE_MAX_LOAD: f32 = 0.75;
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct HashKeyString {
-    pub value: String,
-    pub hash: u64,
-}
 
 #[derive(PartialEq, Clone)]
 pub struct Entry {
@@ -20,7 +15,11 @@ pub struct Entry {
 
 impl Display for Entry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Entry {{ key: {:?}, value: {} }}", self.key, self.value)
+        write!(
+            f,
+            "Entry {{ key: {:?}, value: {:?} }}",
+            self.key, self.value
+        )
     }
 }
 
@@ -161,16 +160,6 @@ impl HashTable {
             }
         }
     }
-
-    pub fn hash(key: &str) -> u64 {
-        let mut hash = 0xcbf29ce484222325;
-
-        for c in key.as_bytes() {
-            hash ^= *c as u64;
-            hash = hash.wrapping_mul(0x100000001b3);
-        }
-        hash
-    }
 }
 
 impl Default for HashTable {
@@ -181,6 +170,8 @@ impl Default for HashTable {
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::hash;
+
     use super::*;
 
     #[test]
@@ -188,7 +179,7 @@ mod tests {
         let mut table = HashTable::new();
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         table.insert(key, Value::Number(1.0));
         assert_eq!(table.count, 1);
@@ -197,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_hash() {
-        let hash = HashTable::hash("hello");
+        let hash = hash("hello");
         assert_eq!(hash, 11831194018420276491);
     }
 
@@ -206,7 +197,7 @@ mod tests {
         let mut table = HashTable::new();
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         table.insert(key, Value::Number(1.0));
         assert_eq!(table.count, 1);
@@ -214,7 +205,7 @@ mod tests {
 
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         table.insert(key, Value::Number(2.0));
         assert_eq!(table.count, 1);
@@ -226,7 +217,7 @@ mod tests {
         let mut table = HashTable::new();
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         table.insert(key, Value::Number(1.0));
         assert_eq!(table.count, 1);
@@ -234,37 +225,37 @@ mod tests {
 
         let key = HashKeyString {
             value: "hello2".to_string(),
-            hash: HashTable::hash("hello2"),
+            hash: hash("hello2"),
         };
         table.insert(key, Value::Number(2.0));
         let key = HashKeyString {
             value: "hello3".to_string(),
-            hash: HashTable::hash("hello3"),
+            hash: hash("hello3"),
         };
         table.insert(key, Value::Number(3.0));
         let key = HashKeyString {
             value: "hello4".to_string(),
-            hash: HashTable::hash("hello4"),
+            hash: hash("hello4"),
         };
         table.insert(key, Value::Number(4.0));
         let key = HashKeyString {
             value: "hello5".to_string(),
-            hash: HashTable::hash("hello5"),
+            hash: hash("hello5"),
         };
         table.insert(key, Value::Number(5.0));
         let key = HashKeyString {
             value: "hello6".to_string(),
-            hash: HashTable::hash("hello6"),
+            hash: hash("hello6"),
         };
         table.insert(key, Value::Number(6.0));
         let key = HashKeyString {
             value: "hello7".to_string(),
-            hash: HashTable::hash("hello7"),
+            hash: hash("hello7"),
         };
         table.insert(key, Value::Number(7.0));
         let key = HashKeyString {
             value: "hello8".to_string(),
-            hash: HashTable::hash("hello8"),
+            hash: hash("hello8"),
         };
         table.insert(key, Value::Number(8.0));
         assert_eq!(table.count, 8);
@@ -276,7 +267,7 @@ mod tests {
         let mut table = HashTable::new();
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         table.insert(key, Value::Number(1.0));
         assert_eq!(table.count, 1);
@@ -284,7 +275,7 @@ mod tests {
 
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         let value = table.get(&key);
         assert_eq!(value, Some(&Value::Number(1.0)));
@@ -295,7 +286,7 @@ mod tests {
         let mut table = HashTable::new();
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         table.insert(key, Value::Number(1.0));
         assert_eq!(table.count, 1);
@@ -303,7 +294,7 @@ mod tests {
 
         let key = HashKeyString {
             value: "hello2".to_string(),
-            hash: HashTable::hash("hello2"),
+            hash: hash("hello2"),
         };
         let value = table.get(&key);
         assert_eq!(value, None);
@@ -314,7 +305,7 @@ mod tests {
         let mut table = HashTable::new();
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         table.insert(key, Value::Number(1.0));
         assert_eq!(table.count, 1);
@@ -322,7 +313,7 @@ mod tests {
 
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         let value = table.remove(&key);
         assert_eq!(value, Some(Value::Number(1.0)));
@@ -335,7 +326,7 @@ mod tests {
         let mut table = HashTable::new();
         let key = HashKeyString {
             value: "hello".to_string(),
-            hash: HashTable::hash("hello"),
+            hash: hash("hello"),
         };
         table.insert(key, Value::Number(1.0));
         assert_eq!(table.count, 1);
@@ -343,7 +334,7 @@ mod tests {
 
         let key = HashKeyString {
             value: "hello2".to_string(),
-            hash: HashTable::hash("hello2"),
+            hash: hash("hello2"),
         };
         let value = table.remove(&key);
         assert_eq!(value, None);

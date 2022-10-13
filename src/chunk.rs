@@ -1,21 +1,21 @@
-use crate::lec::Lec;
 use crate::op_code::OpCode;
 use crate::value::Value;
 
+#[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub struct Chunk {
-    pub code: Lec<OpCode>,
-    pub constants: Lec<Value>,
-    pub lines: Lec<usize>,
+    pub code: Vec<OpCode>,
+    pub constants: Vec<Value>,
+    pub lines: Vec<usize>,
 }
 
 impl Chunk {
     pub fn new() -> Self {
         Self {
             // Instruction OP code
-            code: Lec::new(),
+            code: Vec::new(),
             //TODO: use hash table to store constants?
-            constants: Lec::new(),
-            lines: Lec::new(),
+            constants: Vec::new(),
+            lines: Vec::new(),
         }
     }
 
@@ -88,6 +88,7 @@ impl Chunk {
             }
             OpCode::GetLocal(v) => self.constant_instruction("Get Local", Some(*v), offset, *line),
             OpCode::SetLocal(v) => self.constant_instruction("Set Local", Some(*v), offset, *line),
+            OpCode::Call(v) => self.constant_instruction("Function", Some(*v), offset, *line),
             _ => println!("Unknown opcode {}", instruction),
         }
     }
