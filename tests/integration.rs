@@ -800,3 +800,130 @@ fn rox_func() -> TestResult {
         "foo",
     )
 }
+
+#[test]
+fn rox_func_call() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo() {
+                print "foo is a function";
+            }
+            foo();
+        "#,
+        "foo is a function",
+    )
+}
+
+#[test]
+fn rox_func_call2() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo() {
+                print "foo is a function";
+            }
+            fun bar() {
+                foo();
+            }
+            bar();
+        "#,
+        "foo is a function",
+    )
+}
+
+#[test]
+fn rox_func_call3() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo() {
+                var a=1;
+                var b=2;
+                print a+b;
+            }
+            fun bar() {
+                foo();
+            }
+            bar();
+        "#,
+        "3",
+    )
+}
+
+#[test]
+fn rox_func_call4() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                var b = 2;
+                print x+b;
+            }
+            foo(2);
+        "#,
+        "4",
+    )
+}
+
+#[test]
+fn rox_func_call5() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x, y) {
+                var b = 2;
+                print x+y+b;
+            }
+            fun bar(x) {
+                foo(2, x);
+            }
+            bar(2);
+        "#,
+        "6",
+    )
+}
+
+#[test]
+fn rox_func_call_return() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                return x+1;
+            }
+            print foo(2);
+        "#,
+        "3",
+    )
+}
+#[test]
+fn rox_func_call_return2() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x, y) {
+                var b = 2;
+                return x+y+b;
+            }
+            fun bar(x) {
+                return foo(2, x);
+            }
+            print bar(2);
+        "#,
+        "6",
+    )
+}
+
+// #[test]
+// fn rox_func_call_return2() -> TestResult {
+//     run_test_contains(
+//         r#"
+//             fun foo(x, y) {
+//                 var b = 2;
+//                 return x+y+b;
+//             }
+//             fun bar(x) {
+//                 return foo(2, x);
+//             }
+//             fun baz(x) {
+//                 return x;
+//             }
+//             print bar(2) + baz(2);
+//         "#,
+//         "6",
+//     )
+// }
