@@ -628,7 +628,7 @@ impl<'a> Parser<'a> {
         self.compiler.function.chunk.code.len() - 1
     }
 
-    fn end_compiler(mut self) -> Result<ObjFunction, ()> {
+    fn end_compiler(mut self) -> Result<ObjFunction, String> {
         self.emit_return();
 
         if !self.had_error {
@@ -638,7 +638,7 @@ impl<'a> Parser<'a> {
                 .disassemble_chunk(&self.compiler.function.name.value);
             Ok(self.compiler.function)
         } else {
-            Err(())
+            Err("Compile error".to_string())
         }
     }
 
@@ -689,7 +689,7 @@ impl<'a> Parser<'a> {
     fn function(&mut self, kind: FunctionType) {
         let compiler = Compiler::new(
             convert_slice_to_string(
-                &self.scanner.bytes,
+                self.scanner.bytes,
                 self.previous.start,
                 self.previous.start + self.previous.length,
             ),
@@ -703,7 +703,7 @@ impl<'a> Parser<'a> {
         if !self.check(TokenType::RightParen) {
             loop {
                 self.compiler.function.arity += 1;
-                if self.compiler.function.arity > 255 as u8 {
+                if self.compiler.function.arity == u8::MAX {
                     self.error_at_current("Cannot have more than 255 parameters.");
                 }
                 let constant = self.variable("Expect parameter name.");
@@ -857,7 +857,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn compile(mut self) -> Result<ObjFunction, ()> {
+    pub fn compile(mut self) -> Result<ObjFunction, String> {
         self.next_valid_token();
 
         while self.current.t_type != TokenType::Eof {

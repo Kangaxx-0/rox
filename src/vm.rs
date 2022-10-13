@@ -224,12 +224,12 @@ impl Vm {
     }
 
     fn run(&mut self) -> Result<(), InterpretError> {
-        // let mut frame = self.frames.pop().expect("no current chunk");
         loop {
             let instruction = self.current_chunk().code[self.current_frame().ip];
             // Enable this to see the chunk and stack
-            // self..function.chunk.disassemble_instruction(frame.ip);
-            // self.print_stack();
+            self.current_chunk()
+                .disassemble_instruction(self.current_frame().ip);
+            self.print_stack();
             self.current_frame_mut().ip += 1;
             match instruction {
                 OpCode::Return => return Ok(()),
