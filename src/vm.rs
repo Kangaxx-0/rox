@@ -238,7 +238,7 @@ impl Vm {
             // Enable this to see the chunk and stack
             // self.current_chunk()
             //     .disassemble_instruction(self.current_frame().ip);
-            // self.print_stack();
+            self.print_stack();
             self.current_frame_mut().ip += 1;
             match instruction {
                 OpCode::Return => {
