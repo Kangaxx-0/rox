@@ -242,18 +242,18 @@ impl Vm {
             self.current_frame_mut().ip += 1;
             match instruction {
                 OpCode::Return => {
-                    let res = self.pop().expect("unable to pop value");
+                    self.frames.pop().expect("unable to pop frame");
                     self.frame_count -= 1;
+                    let res = self.pop().expect("unable to pop value");
                     if self.frame_count == 0 {
                         // we've finished executing the top-level code. We are done
-                        // self.pop().expect("unable to pop value");
                         return Ok(());
+                    } else {
+                        // the call is done, the caller does not need it anymore, the top of the stack
+                        // ends up right at the beginning of the returning function's stack window
+                        self.stack.values.truncate(self.current_frame().slots);
+                        self.push(res);
                     }
-
-                    // the call is done, the caller does not need it anymore, the top of the stack
-                    // ends up right at the beginning of the returning function's stack window
-                    self.stack.values.truncate(self.current_frame().slots);
-                    self.push(res);
                 }
                 OpCode::Constant(v) => {
                     let val = self.current_chunk().constants[v].clone();
