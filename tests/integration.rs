@@ -948,18 +948,17 @@ fn rox_func_call_return4() -> TestResult {
     )
 }
 
-// #[test]
-// fn rox_func_dup_call() -> TestResult {
-//     run_test_contains(
-//         r#"
-//             fun foo(x) {
-//                 return x;
-//             }
-//             var res1 = foo(2);
-//             var res2 = foo(3);
-//             print res1;
-//             print res2;
-//         "#,
-//         "6",
-//     )
-// }
+#[test]
+fn rox_func_dup_call() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                return x;
+            }
+            var res1 = foo(2);
+            var res2 = foo(3);
+            print res1 + res2;
+        "#,
+        "5",
+    )
+}
