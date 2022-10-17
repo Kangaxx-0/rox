@@ -2,7 +2,7 @@ use crate::chunk::Chunk;
 use crate::compiler::Parser;
 use crate::{
     hashtable::HashTable,
-    objects::{HashKeyString, ObjFunction},
+    objects::{HashKeyString, ObjFunction, ObjNative},
     op_code::OpCode,
     stack::Stack,
     utils::{hash, is_falsey},
@@ -20,7 +20,7 @@ pub enum InterpretError {
 
 #[derive(Clone, Debug)]
 // represents a single ongoing function call
-// TODO - function calla are a core operation, can we do not use heap allocation here?
+// TODO - function calls are a core operation, can we do not use heap allocation here?
 pub struct CallFrame {
     function: ObjFunction,
     ip: usize,    // when we return from a function, caller needs to know where to resume
@@ -49,7 +49,6 @@ impl Vm {
             stack: Stack::new(),
             table: HashTable::new(),
             frames: Vec::with_capacity(FRAME_MAX),
-            // frame_count: 0,
         }
     }
 
@@ -86,6 +85,13 @@ impl Vm {
         match callee {
             // call a function will push the callee to call frame which represents a single ongoing function call
             Value::Function(function) => self.call(function, arg_count),
+            Value::NativeFunction(native) => {
+                let idx = self.stack.len() - arg_count;
+                let result = (native.func)(&self.stack.values[idx..]);
+                self.stack.values.truncate(idx - 1);
+                self.push(result);
+                true
+            }
             _ => {
                 println!("Can only call functions and classes.");
                 false

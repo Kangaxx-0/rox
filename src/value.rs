@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::objects::ObjFunction;
+use crate::objects::{ObjFunction, ObjNative};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Value {
@@ -10,6 +10,7 @@ pub enum Value {
     Number(f64),
     String(String),
     Function(ObjFunction),
+    NativeFunction(ObjNative),
 }
 
 impl Display for Value {
@@ -20,6 +21,7 @@ impl Display for Value {
             Value::Nil => write!(f, "Nil"),
             Value::Number(n) => write!(f, "{}", n),
             Value::String(s) => write!(f, "{}", s),
+            Value::NativeFunction(_) => write!(f, "Native Function"),
             _ => write!(f, "Function"),
         }
     }
