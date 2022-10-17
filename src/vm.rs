@@ -41,7 +41,6 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
-    frame_count: usize, // current height of the call frame stack - the number of ongoing calls.
 }
 
 impl Vm {
@@ -50,7 +49,7 @@ impl Vm {
             stack: Stack::new(),
             table: HashTable::new(),
             frames: Vec::with_capacity(FRAME_MAX),
-            frame_count: 0,
+            // frame_count: 0,
         }
     }
 
@@ -103,7 +102,7 @@ impl Vm {
             return false;
         }
 
-        if self.frame_count == FRAME_MAX {
+        if self.frames.len() == FRAME_MAX {
             println!("Stack overflow!");
             return false;
         }
@@ -114,7 +113,6 @@ impl Vm {
         frame.ip = 0;
         frame.slots = stack_top;
         self.frames.push(frame);
-        self.frame_count += 1;
         true
     }
 
@@ -217,11 +215,11 @@ impl Vm {
     }
 
     fn current_frame(&self) -> &CallFrame {
-        &self.frames[self.frame_count - 1]
+        self.frames.last().expect("unable to get current frame")
     }
 
     fn current_frame_mut(&mut self) -> &mut CallFrame {
-        &mut self.frames[self.frame_count - 1]
+        self.frames.last_mut().expect("unable to get current frame")
     }
 
     fn current_chunk(&self) -> &Chunk {
@@ -242,16 +240,17 @@ impl Vm {
             self.current_frame_mut().ip += 1;
             match instruction {
                 OpCode::Return => {
-                    self.frames.pop().expect("unable to pop frame");
-                    self.frame_count -= 1;
+                    // When a function returns, we pop the top value off the stack and discard it.
                     let res = self.pop().expect("unable to pop value");
-                    if self.frame_count == 0 {
+                    // Discard the call frame for the returning function.
+                    let frame = self.frames.pop().expect("unable to pop frame");
+                    if self.frames.is_empty() {
                         // we've finished executing the top-level code. We are done
                         return Ok(());
                     } else {
                         // the call is done, the caller does not need it anymore, the top of the stack
                         // ends up right at the beginning of the returning function's stack window
-                        self.stack.values.truncate(self.current_frame().slots);
+                        self.stack.values.truncate(frame.slots);
                         self.push(res);
                     }
                 }

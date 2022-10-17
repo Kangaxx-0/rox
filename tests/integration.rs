@@ -962,3 +962,32 @@ fn rox_func_dup_call() -> TestResult {
         "5",
     )
 }
+
+#[test]
+fn rox_func_dup_call2() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                return x;
+            }
+            print foo(2) + foo(3);
+        "#,
+        "5",
+    )
+}
+
+#[test]
+fn rox_func_dup_call3() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                return x;
+            }
+            fun bar(x) {
+                return foo(x);
+            }
+            print bar(2) + bar(3);
+        "#,
+        "5",
+    )
+}
