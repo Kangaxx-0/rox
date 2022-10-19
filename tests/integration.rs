@@ -336,9 +336,9 @@ fn rox_variable_assign_after_allocation2() -> TestResult {
             var q = 15;
             var r = 16;
             var s = 17;
-            var z = b + g + m +q;
+            var z = c + g + m +q;
             print z;"#,
-        "Printing value of 42",
+        "Printing value of 43",
     )
 }
 
@@ -365,7 +365,7 @@ fn rox_variable_assign_after_allocation3() -> TestResult {
             var q = 15;
             var r = 16;
             var s = 17;
-            var z = b + g + m +q;
+            var z = c + g + m +q;
             var x = z + 1;
             var y = 18;
             var w = 19;
@@ -908,22 +908,115 @@ fn rox_func_call_return2() -> TestResult {
     )
 }
 
-// #[test]
-// fn rox_func_call_return2() -> TestResult {
-//     run_test_contains(
-//         r#"
-//             fun foo(x, y) {
-//                 var b = 2;
-//                 return x+y+b;
-//             }
-//             fun bar(x) {
-//                 return foo(2, x);
-//             }
-//             fun baz(x) {
-//                 return x;
-//             }
-//             print bar(2) + baz(2);
-//         "#,
-//         "6",
-//     )
-// }
+#[test]
+fn rox_func_call_return3() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x, y) {
+                var b = 2;
+                return x+y+b;
+            }
+            fun bar(x) {
+                return foo(2, x);
+            }
+            var res1 = bar(2);
+            print res1;
+        "#,
+        "6",
+    )
+}
+
+#[test]
+fn rox_func_call_return4() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x, y) {
+                if (x > y) {
+                    return x;
+                }
+                else {
+                    return y;
+                }
+            }
+            fun bar(x) {
+                return foo(2, x);
+            }
+            var res = bar(3);
+            print res;
+        "#,
+        "false",
+    )
+}
+
+#[test]
+fn rox_func_dup_call() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                return x;
+            }
+            var res1 = foo(2);
+            var res2 = foo(3);
+            print res1 + res2;
+        "#,
+        "5",
+    )
+}
+
+#[test]
+fn rox_func_dup_call2() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                return x;
+            }
+            print foo(2) + foo(3);
+        "#,
+        "5",
+    )
+}
+
+#[test]
+fn rox_func_dup_call3() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                return x;
+            }
+            fun bar(x) {
+                return foo(x);
+            }
+            print bar(2) + bar(3);
+        "#,
+        "5",
+    )
+}
+
+#[test]
+fn rox_func_dup_call4() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(x) {
+                return x;
+            }
+            fun bar(x) {
+                return foo(x);
+            }
+            fun baz(x) {
+                return bar(x);
+            }
+            print baz(2) + baz(3) + bar(4) + foo(5);
+        "#,
+        "14",
+    )
+}
+
+#[test]
+fn rox_native_func() -> TestResult {
+    run_test_contains(
+        r#"
+            print clock();
+        "#,
+        "clock",
+    )
+}

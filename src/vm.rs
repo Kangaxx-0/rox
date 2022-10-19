@@ -1,8 +1,10 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
 use crate::{
     hashtable::HashTable,
-    objects::{HashKeyString, ObjFunction},
+    objects::{HashKeyString, ObjFunction, ObjNative},
     op_code::OpCode,
     stack::Stack,
     utils::{hash, is_falsey},
@@ -20,7 +22,7 @@ pub enum InterpretError {
 
 #[derive(Clone, Debug)]
 // represents a single ongoing function call
-// TODO - function calla are a core operation, can we do not use heap allocation here?
+// TODO - function calls are a core operation, can we do not use heap allocation here?
 pub struct CallFrame {
     function: ObjFunction,
     ip: usize,    // when we return from a function, caller needs to know where to resume
@@ -41,17 +43,18 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
-    frame_count: usize, // current height of the call frame stack - the number of ongoing calls.
 }
 
 impl Vm {
     pub fn new() -> Self {
-        Self {
+        let mut res = Self {
             stack: Stack::new(),
             table: HashTable::new(),
             frames: Vec::with_capacity(FRAME_MAX),
-            frame_count: 0,
-        }
+        };
+        res.define_native(ObjNative::new("clock".to_string(), clock_native));
+
+        res
     }
 
     pub fn initialize(&mut self) {
@@ -87,6 +90,13 @@ impl Vm {
         match callee {
             // call a function will push the callee to call frame which represents a single ongoing function call
             Value::Function(function) => self.call(function, arg_count),
+            Value::NativeFunction(native) => {
+                let idx = self.stack.len() - arg_count;
+                let result = (native.func)(&self.stack.values[idx..]);
+                self.stack.values.truncate(idx - 1);
+                self.push(result);
+                true
+            }
             _ => {
                 println!("Can only call functions and classes.");
                 false
@@ -103,7 +113,7 @@ impl Vm {
             return false;
         }
 
-        if self.frame_count == FRAME_MAX {
+        if self.frames.len() == FRAME_MAX {
             println!("Stack overflow!");
             return false;
         }
@@ -114,8 +124,12 @@ impl Vm {
         frame.ip = 0;
         frame.slots = stack_top;
         self.frames.push(frame);
-        self.frame_count += 1;
         true
+    }
+
+    fn define_native(&mut self, native: ObjNative) {
+        self.table
+            .insert(native.name.clone(), Value::NativeFunction(native));
     }
 
     fn runtime_error(&mut self, message: &str) {
@@ -217,11 +231,11 @@ impl Vm {
     }
 
     fn current_frame(&self) -> &CallFrame {
-        &self.frames[self.frame_count - 1]
+        self.frames.last().expect("unable to get current frame")
     }
 
     fn current_frame_mut(&mut self) -> &mut CallFrame {
-        &mut self.frames[self.frame_count - 1]
+        self.frames.last_mut().expect("unable to get current frame")
     }
 
     fn current_chunk(&self) -> &Chunk {
@@ -242,18 +256,19 @@ impl Vm {
             self.current_frame_mut().ip += 1;
             match instruction {
                 OpCode::Return => {
+                    // When a function returns, we pop the top value off the stack and discard it.
                     let res = self.pop().expect("unable to pop value");
-                    self.frame_count -= 1;
-                    if self.frame_count == 0 {
+                    // Discard the call frame for the returning function.
+                    let frame = self.frames.pop().expect("unable to pop frame");
+                    if self.frames.is_empty() {
                         // we've finished executing the top-level code. We are done
-                        // self.pop().expect("unable to pop value");
                         return Ok(());
+                    } else {
+                        // the call is done, the caller does not need it anymore, the top of the stack
+                        // ends up right at the beginning of the returning function's stack window
+                        self.stack.values.truncate(frame.slots);
+                        self.push(res);
                     }
-
-                    // the call is done, the caller does not need it anymore, the top of the stack
-                    // ends up right at the beginning of the returning function's stack window
-                    self.stack.values.truncate(self.current_frame().slots);
-                    self.push(res);
                 }
                 OpCode::Constant(v) => {
                     let val = self.current_chunk().constants[v].clone();
@@ -392,8 +407,8 @@ impl Vm {
                 }
                 OpCode::Loop(offset) => {
                     self.current_frame_mut().ip -= offset as usize;
-                    // We need to subtract 1 from the ip because the ip will be incremented by 1
-                    // at the end of the loop
+                    // We need to subtract 1 from the ip because the ip will be incremented at the
+                    // beginning of the loop
                     self.current_frame_mut().ip -= 1;
                 }
                 OpCode::Call(arg_count) => {
@@ -424,6 +439,12 @@ impl Default for Vm {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn clock_native(_args: &[Value]) -> Value {
+    let now = SystemTime::now();
+    let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    Value::Number(since_the_epoch.as_secs_f64())
 }
 
 // unit test
