@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
 use crate::{
@@ -45,11 +47,14 @@ pub struct Vm {
 
 impl Vm {
     pub fn new() -> Self {
-        Self {
+        let mut res = Self {
             stack: Stack::new(),
             table: HashTable::new(),
             frames: Vec::with_capacity(FRAME_MAX),
-        }
+        };
+        res.define_native(ObjNative::new("clock".to_string(), clock_native));
+
+        res
     }
 
     pub fn initialize(&mut self) {
@@ -120,6 +125,11 @@ impl Vm {
         frame.slots = stack_top;
         self.frames.push(frame);
         true
+    }
+
+    fn define_native(&mut self, native: ObjNative) {
+        self.table
+            .insert(native.name.clone(), Value::NativeFunction(native));
     }
 
     fn runtime_error(&mut self, message: &str) {
@@ -397,8 +407,8 @@ impl Vm {
                 }
                 OpCode::Loop(offset) => {
                     self.current_frame_mut().ip -= offset as usize;
-                    // We need to subtract 1 from the ip because the ip will be incremented by 1
-                    // at the end of the loop
+                    // We need to subtract 1 from the ip because the ip will be incremented at the
+                    // beginning of the loop
                     self.current_frame_mut().ip -= 1;
                 }
                 OpCode::Call(arg_count) => {
@@ -429,6 +439,12 @@ impl Default for Vm {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn clock_native(_args: &[Value]) -> Value {
+    let now = SystemTime::now();
+    let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    Value::Number(since_the_epoch.as_secs_f64())
 }
 
 // unit test

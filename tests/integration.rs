@@ -336,9 +336,9 @@ fn rox_variable_assign_after_allocation2() -> TestResult {
             var q = 15;
             var r = 16;
             var s = 17;
-            var z = b + g + m +q;
+            var z = c + g + m +q;
             print z;"#,
-        "Printing value of 42",
+        "Printing value of 43",
     )
 }
 
@@ -365,7 +365,7 @@ fn rox_variable_assign_after_allocation3() -> TestResult {
             var q = 15;
             var r = 16;
             var s = 17;
-            var z = b + g + m +q;
+            var z = c + g + m +q;
             var x = z + 1;
             var y = 18;
             var w = 19;
@@ -1008,5 +1008,15 @@ fn rox_func_dup_call4() -> TestResult {
             print baz(2) + baz(3) + bar(4) + foo(5);
         "#,
         "14",
+    )
+}
+
+#[test]
+fn rox_native_func() -> TestResult {
+    run_test_contains(
+        r#"
+            print clock();
+        "#,
+        "clock",
     )
 }
