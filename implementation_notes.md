@@ -212,3 +212,8 @@ typedef enum {
 <img src="https://github.com/Kangaxx-0/rox/blob/safe/assets/function-obj.drawio.png" alt="global" />
 </aside>
 
+函数存在哪里？
+> where is function saved 
+函数`ObjFunction`和全部变量类似，存储在哈希表中
+> Fuction `Objfunct` like global variable, is saved in our `Hashtable`
+
