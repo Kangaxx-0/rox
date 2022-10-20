@@ -14,7 +14,7 @@ fn main() {
 
     match args.len() {
         1 => repl(&mut vm),
-        2 => run_file(&mut vm, args[1].clone()),
+        2 => run_file(&mut vm, &args[1]),
         _ => {
             println!("rox can not recognize arguments");
             exit(64)
@@ -45,7 +45,7 @@ fn repl(vm: &mut Vm) {
     }
 }
 
-fn run_file(vm: &mut Vm, file_name: String) {
+fn run_file(vm: &mut Vm, file_name: &str) {
     let content = std::fs::read(file_name).expect("Could not read file");
     let input = String::from_utf8(content).expect("Could not convert file to string");
     match vm.interpret(&input) {

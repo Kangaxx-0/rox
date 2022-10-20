@@ -82,6 +82,7 @@ impl Vm {
         self.stack.pop()
     }
 
+    // We do not want to pop the value out of the stack if it just peeks
     fn peek(&self, distance: usize) -> Option<&Value> {
         self.stack.peek(distance)
     }
@@ -155,22 +156,20 @@ impl Vm {
         );
         match code {
             //FIXME - Refactor and simplify the code later
-            OpCode::Add => {
-                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
-                    let result = x2 + x1;
+            OpCode::Add => match (v1, v2) {
+                (Value::Number(v1), Value::Number(v2)) => {
+                    let result = v1 + v2;
                     self.push(Value::Number(result));
                     Ok(())
-                } else if let (Value::String(x1), Value::String(x2)) = (&v1, &v2) {
-                    let mut result = x2.clone();
-                    result.push_str(x1);
+                }
+                (Value::String(s1), Value::String(s2)) => {
+                    let mut result = s2;
+                    result.push_str(&s1);
                     self.push(Value::String(result));
                     Ok(())
-                } else {
-                    self.push(v1);
-                    self.push(v2);
-                    Err(InterpretError::RuntimeError)
                 }
-            }
+                _ => Err(InterpretError::RuntimeError),
+            },
             OpCode::Subtract => {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 - x1;
