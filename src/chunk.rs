@@ -61,6 +61,7 @@ impl Chunk {
         let line = &self.lines[offset];
         match instruction {
             OpCode::Call(v) => self.constant_instruction("Call", Some(*v), offset, *line),
+            OpCode::Closure(v) => self.constant_instruction("Closure", Some(*v), offset, *line),
             OpCode::Constant(v) => self.constant_instruction("Constant", Some(*v), offset, *line),
             OpCode::Negative => self.constant_instruction("Negative", None, offset, *line),
             OpCode::Return => self.constant_instruction("Return", None, offset, *line),
