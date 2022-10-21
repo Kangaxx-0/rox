@@ -600,6 +600,11 @@ impl<'a> Parser<'a> {
         self.emit_byte(OpCode::Constant(index));
     }
 
+    fn emit_closure(&mut self, value: Value) {
+        let index = self.current_function_chunk_mut().push_constant(value);
+        self.emit_byte(OpCode::Closure(index));
+    }
+
     fn emit_loop(&mut self, loop_start: u16) {
         let len =
             u16::try_from(self.current_function_chunk().code.len()).expect("Chunk code too large");
@@ -727,7 +732,7 @@ impl<'a> Parser<'a> {
 
         if let Some(new_cc) = self.compiler.enclosing.take() {
             let function = std::mem::replace(&mut self.compiler, *new_cc).function;
-            self.emit_constant(Value::Function(function));
+            self.emit_closure(Value::Function(function));
         }
     }
 

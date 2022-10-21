@@ -5,6 +5,7 @@ use std::fmt::Display;
 pub enum OpCode {
     Add,
     Call(usize),
+    Closure(usize),
     Constant(usize),
     Divide,
     Equal,
@@ -37,6 +38,7 @@ impl Display for OpCode {
         match self {
             Self::Add => write!(f, "add operation"),
             Self::Call(v) => write!(f, "system call {}", v),
+            Self::Closure(v) => write!(f, "closure {}", v),
             Self::Constant(v) => write!(f, "constant {}", v),
             Self::Divide => write!(f, "divide operation"),
             Self::Equal => write!(f, "equal operation"),

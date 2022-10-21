@@ -2,6 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
+use crate::objects::ObjClosure;
 use crate::{
     hashtable::HashTable,
     objects::{HashKeyString, ObjFunction, ObjNative},
@@ -25,14 +26,17 @@ pub enum InterpretError {
 // TODO - function calls are a core operation, can we do not use heap allocation here?
 pub struct CallFrame {
     function: ObjFunction,
+    closure: ObjClosure,
     ip: usize,    // when we return from a function, caller needs to know where to resume
     slots: usize, // points to vm stack at the first slot function can use
 }
 
 impl CallFrame {
     pub fn new(function: ObjFunction) -> Self {
+        let closure = ObjClosure::new(function.clone());
         Self {
             function,
+            closure,
             ip: 0,
             slots: 0,
         }
@@ -66,7 +70,8 @@ impl Vm {
         match parser.compile() {
             Ok(function) => {
                 // script function is always at the top of the stack
-                self.push(Value::Function(function.clone()));
+                let closure = ObjClosure::new(function.clone());
+                self.push(Value::Closure(closure));
                 self.call(function, 0);
                 self.run()
             }
@@ -98,6 +103,7 @@ impl Vm {
                 self.push(result);
                 true
             }
+            Value::Closure(closure) => self.call(closure.function, arg_count),
             _ => {
                 println!("Can only call functions and classes.");
                 false
@@ -418,7 +424,13 @@ impl Vm {
                         return Err(InterpretError::RuntimeError);
                     }
                 }
-
+                OpCode::Closure(v) => {
+                    let val = self.current_chunk().constants[v].clone();
+                    if let Value::Function(f) = val {
+                        let closure = ObjClosure::new(f);
+                        self.push(Value::Closure(closure));
+                    }
+                }
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     return Err(InterpretError::RuntimeError);
