@@ -1020,3 +1020,21 @@ fn rox_native_func() -> TestResult {
         "clock",
     )
 }
+
+#[test]
+fn rox_closure() -> TestResult {
+    run_test_contains(
+        r#"
+            var x = "global";
+            fun outer() {
+                var x = "outer";
+                fun inner() {
+                    print x;
+                }
+                inner();
+            }
+            outer();
+        "#,
+        "global1",
+    )
+}

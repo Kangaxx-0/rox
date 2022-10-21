@@ -2,9 +2,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
+use crate::objects::ObjClosure;
 use crate::{
     hashtable::HashTable,
-    objects::{HashKeyString, ObjFunction, ObjNative},
+    objects::{HashKeyString, ObjNative},
     op_code::OpCode,
     stack::Stack,
     utils::{hash, is_falsey},
@@ -24,15 +25,15 @@ pub enum InterpretError {
 // represents a single ongoing function call
 // TODO - function calls are a core operation, can we do not use heap allocation here?
 pub struct CallFrame {
-    function: ObjFunction,
+    closure: ObjClosure,
     ip: usize,    // when we return from a function, caller needs to know where to resume
     slots: usize, // points to vm stack at the first slot function can use
 }
 
 impl CallFrame {
-    pub fn new(function: ObjFunction) -> Self {
+    pub fn new(closure: ObjClosure) -> Self {
         Self {
-            function,
+            closure,
             ip: 0,
             slots: 0,
         }
@@ -66,8 +67,10 @@ impl Vm {
         match parser.compile() {
             Ok(function) => {
                 // script function is always at the top of the stack
-                self.push(Value::Function(function.clone()));
-                self.call(function, 0);
+                let closure = ObjClosure::new(function);
+                self.pop();
+                self.push(Value::Closure(closure.clone()));
+                self.call(closure, 0);
                 self.run()
             }
             Err(_) => Err(InterpretError::CompileError),
@@ -90,7 +93,7 @@ impl Vm {
     fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
         match callee {
             // call a function will push the callee to call frame which represents a single ongoing function call
-            Value::Function(function) => self.call(function, arg_count),
+            Value::Closure(closure) => self.call(closure, arg_count),
             Value::NativeFunction(native) => {
                 let idx = self.stack.len() - arg_count;
                 let result = (native.func)(&self.stack.values[idx..]);
@@ -105,11 +108,11 @@ impl Vm {
         }
     }
 
-    fn call(&mut self, function: ObjFunction, arg_count: usize) -> bool {
-        if arg_count != function.arity as usize {
+    fn call(&mut self, closure: ObjClosure, arg_count: usize) -> bool {
+        if arg_count != closure.function.arity as usize {
             println!(
                 "Expected {} arguments but got {}.",
-                function.arity, arg_count
+                closure.function.arity, arg_count
             );
             return false;
         }
@@ -121,7 +124,7 @@ impl Vm {
 
         // calculate the stack start slot for the function
         let stack_top = self.stack.len() - arg_count - 1;
-        let mut frame = CallFrame::new(function);
+        let mut frame = CallFrame::new(closure);
         frame.ip = 0;
         frame.slots = stack_top;
         self.frames.push(frame);
@@ -141,7 +144,7 @@ impl Vm {
         eprintln!(" [line {}]", line);
 
         for frame in self.frames.iter().rev() {
-            let function = &frame.function;
+            let function = &frame.closure.function;
             let line = function.chunk.lines[frame.ip - 1];
             eprintln!("[line {}] in {}", line, function.name.value);
         }
@@ -238,7 +241,7 @@ impl Vm {
     }
 
     fn current_chunk(&self) -> &Chunk {
-        &self.current_frame().function.chunk
+        &self.current_frame().closure.function.chunk
     }
 
     fn current_line(&self) -> usize {
@@ -343,7 +346,9 @@ impl Vm {
                     }
                 }
                 OpCode::DefineGlobal(v) => {
-                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
+                    if let Value::String(s) =
+                        &self.current_frame().closure.function.chunk.constants[v]
+                    {
                         let key = HashKeyString {
                             hash: hash(s),
                             value: s.to_string(),
@@ -353,7 +358,9 @@ impl Vm {
                     }
                 }
                 OpCode::GetGlobal(v) => {
-                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
+                    if let Value::String(s) =
+                        &self.current_frame().closure.function.chunk.constants[v]
+                    {
                         let key = HashKeyString {
                             hash: hash(s),
                             value: s.to_string(),
@@ -367,7 +374,9 @@ impl Vm {
                     }
                 }
                 OpCode::SetGlobal(v) => {
-                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
+                    if let Value::String(s) =
+                        &self.current_frame().closure.function.chunk.constants[v]
+                    {
                         let key = HashKeyString {
                             hash: hash(s),
                             value: s.to_string(),
@@ -418,7 +427,13 @@ impl Vm {
                         return Err(InterpretError::RuntimeError);
                     }
                 }
-
+                OpCode::Closure(v) => {
+                    let val = self.current_chunk().constants[v].clone();
+                    if let Value::Function(f) = val {
+                        let closure = ObjClosure::new(f);
+                        self.push(Value::Closure(closure));
+                    }
+                }
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     return Err(InterpretError::RuntimeError);

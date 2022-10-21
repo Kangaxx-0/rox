@@ -8,6 +8,7 @@ pub struct HashKeyString {
     pub hash: u64,
 }
 
+// Define a new type for the function.
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd)]
 pub struct ObjFunction {
     pub arity: u8,
@@ -28,6 +29,19 @@ impl ObjFunction {
     }
 }
 
+// Define a new type for closures.
+#[derive(PartialEq, Eq, Debug, Clone, PartialOrd)]
+pub struct ObjClosure {
+    pub function: ObjFunction, // closure shares the same code and constants as the function
+}
+
+impl ObjClosure {
+    pub fn new(function: ObjFunction) -> Self {
+        Self { function }
+    }
+}
+
+// Define a new type for native functions
 #[derive(Clone)]
 pub struct ObjNative {
     pub name: HashKeyString,
