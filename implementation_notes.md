@@ -223,3 +223,6 @@ typedef enum {
 为什么不能用相同的代码实现闭包 - 我们的虚拟机在运行时使用ObjFunction表示函数。这些对象是由前端在编译时创建的。在运行时，虚拟机所做的就是从一个常量表中加载函数对象，并将其与一个名称绑定。在运行时，没有“创建”函数的操作。与字符串和数字字面量一样，它们是纯粹在编译时实例化的常量。而对于闭包，虚拟需要在运行时设法记住捕获一些变量
 > Why can't we use the implementation for clouses? Our VM represents functions at runtime using ObjFunction. These objects are created by the front end during compilation. At runtime, all the VM does is load the function object from a constant table and bind it to a name. There is no operation to “create” a function at runtime. Much like string and number literals, they are constants instantiated purely at compile time. For closure, the VM somehow
 needs to capture variabless at runtime
+
+为了简化clox,原书中将每一个方法都包裹在`ObjClosure`中，既然方式完全不需要捕捉变量。所以我们的实现用闭包替换了方法
+> To simplify the clox, the book's original implementation is to wrap every function in an `ObjClosure`, even if the function doesn’t actually close over and capture any surrounding local variables. That's why we replace function with closure 
