@@ -226,3 +226,21 @@ needs to capture variabless at runtime
 
 为了简化clox,原书中将每一个方法都包裹在`ObjClosure`中，既然方式完全不需要捕捉变量。所以我们的实现用闭包替换了方法
 > To simplify the clox, the book's original implementation is to wrap every function in an `ObjClosure`, even if the function doesn’t actually close over and capture any surrounding local variables. That's why we replace function with closure 
+
+关于`UpValue`章节，原书中描述了最简单的方案，但是因为闭包变量常常存活的比当初它被定义的久，这就意味着他们不存在栈上，所以这个方法不可行，例如下面代码
+> Regards to the `UpValue` section, the books mentioned the easiest apporach is not ok because closed over variables sometimes outlive the function where they are declared. That means they won’t always be on the stack, like below code
+
+```
+var x = "global";
+fun outer() {
+  var x = "outer";   // ----> Defined here
+  fun inner() {
+    print x;
+  }
+  inner();
+}                   // -----> Out of scope, pop out 
+outer();            // -----> Used here
+
+```
+
+
