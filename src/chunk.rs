@@ -90,6 +90,12 @@ impl Chunk {
             OpCode::GetLocal(v) => self.constant_instruction("Get Local", Some(*v), offset, *line),
             OpCode::SetLocal(v) => self.constant_instruction("Set Local", Some(*v), offset, *line),
             OpCode::Call(v) => self.constant_instruction("Function", Some(*v), offset, *line),
+            OpCode::GetUpvalue(v) => {
+                self.constant_instruction("Get Upvalue", Some(*v), offset, *line)
+            }
+            OpCode::SetUpvalue(v) => {
+                self.constant_instruction("Set Upvalue", Some(*v), offset, *line)
+            }
             _ => println!("Unknown opcode {}", instruction),
         }
     }
@@ -109,6 +115,29 @@ impl Chunk {
             None => println!("OP CODE:{} - Line number {}", msg, line),
         }
     }
+
+    //     fn closure_instructon(&self, value: Option<usize>) {
+    //         match value {
+    //             Some(v) => {
+    //                 let closure = &self.constants[v];
+    //
+    //                 match closure {
+    //                     Value::Closure(c) => {
+    //                         for i in 0..c.function.upvalue_count {
+    //                             let is_local = c.function.chunk.code[i];
+    //                             println!(
+    //                                 "OP CODE: Closure - Line number {} - Constant pool index:{} and the value:{}",
+    //                                 "Closure", c.function.chunk[i]., offset, i
+    //                             );
+    //                         }
+    //                     }
+    //                     _ => unreachable!(),
+    //                 }
+    //             }
+    //
+    //             None => println!("OP CODE:{} - Line number {}", msg, line),
+    //         }
+    //     }
 }
 
 impl Default for Chunk {

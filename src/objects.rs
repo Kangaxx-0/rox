@@ -14,6 +14,9 @@ pub struct ObjFunction {
     pub arity: u8,
     pub chunk: Chunk,
     pub name: HashKeyString,
+    // number of upvalues the functions uses. It is stored here because
+    // we need know the count at runtime
+    pub upvalue_count: usize,
 }
 
 impl ObjFunction {
@@ -25,6 +28,7 @@ impl ObjFunction {
                 hash: hash(&name),
                 value: name,
             },
+            upvalue_count: 0,
         }
     }
 }
