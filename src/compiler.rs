@@ -7,6 +7,7 @@ use crate::utils::convert_slice_to_string;
 use crate::value::Value;
 
 const MAX_LOCALS: usize = 256;
+const MAX_UPVALUES: usize = 256;
 
 //FIXME - remove dead_code
 #[allow(dead_code)]
@@ -76,6 +77,12 @@ enum FunctionType {
     Script,
 }
 
+#[derive(Clone, Copy)]
+pub struct UpValue {
+    index: usize,
+    is_local: bool,
+}
+
 pub struct Compiler {
     locals: Vec<Local>,
     local_count: usize,
@@ -83,6 +90,10 @@ pub struct Compiler {
     function: ObjFunction,
     function_type: FunctionType,
     enclosing: Option<Box<Compiler>>, // each compiler points to the enclosing compiler
+    // a level of indirection to the local variable, it refers to
+    // a local variable in the enclosing function, it keeps track the closed-over like how stack
+    // slot index works
+    upvalues: [UpValue; MAX_UPVALUES],
 }
 
 impl Compiler {
@@ -105,6 +116,10 @@ impl Compiler {
             function: ObjFunction::new(name),
             function_type: types,
             enclosing: None,
+            upvalues: [UpValue {
+                index: 0,
+                is_local: false,
+            }; MAX_LOCALS],
         }
     }
 }
@@ -547,24 +562,38 @@ impl<'a> Parser<'a> {
 
     fn compile_named_variable(&mut self, name: Token, can_assign: bool) {
         let arg = self.resolve_local(&name);
+        // Compiler walks the block scopes for the current function from innermost to outermost. If
+        // it does not find the variable in the current scope, it looks for a local variable in any
+        // of the surrounding functions
         match arg {
             Some(index) => {
                 if self.match_token(TokenType::Equal) && can_assign {
                     self.expression();
+
                     self.emit_byte(OpCode::SetLocal(index));
                 } else {
                     self.emit_byte(OpCode::GetLocal(index));
                 }
             }
-            None => {
-                let index = self.identifier_constant();
-                if self.match_token(TokenType::Equal) && can_assign {
-                    self.expression();
-                    self.emit_byte(OpCode::SetGlobal(index));
-                } else {
-                    self.emit_byte(OpCode::GetGlobal(index));
+            None => match self.resolve_upvalue(&name) {
+                Some(index) => {
+                    if self.match_token(TokenType::Equal) && can_assign {
+                        self.expression();
+                        self.emit_byte(OpCode::SetUpvalue(index));
+                    } else {
+                        self.emit_byte(OpCode::GetUpvalue(index));
+                    }
                 }
-            }
+                None => {
+                    let global = self.identifier_constant();
+                    if self.match_token(TokenType::Equal) && can_assign {
+                        self.expression();
+                        self.emit_byte(OpCode::SetGlobal(global));
+                    } else {
+                        self.emit_byte(OpCode::GetGlobal(global));
+                    }
+                }
+            },
         }
     }
 
@@ -579,6 +608,43 @@ impl<'a> Parser<'a> {
             }
         }
         None
+    }
+
+    fn resolve_upvalue(&mut self, name: &Token) -> Option<usize> {
+        if self.compiler.enclosing.is_none() {
+            return None;
+        }
+
+        // First, we look for a matching local variable in the current enclosing function.
+        // If we find one, we capture and return.
+        if let Some(local_index) = self.resolve_local(name) {
+            return Some(self.add_upvalue(local_index, true));
+        }
+
+        // Otherwise, we look for a local variable beyond the immediate enclosing function recursively.
+        // When a local variable is found, the most deeply nested call to resolve_upvalue captures it
+        // and returns the index.
+        match self.resolve_upvalue(name) {
+            Some(index) => Some(self.add_upvalue(index, false)),
+            None => None,
+        }
+    }
+
+    fn add_upvalue(&mut self, index: usize, is_local: bool) -> usize {
+        let count = self.compiler.function.upvalue_count;
+        for value in self.compiler.upvalues.iter() {
+            if value.index == index && value.is_local == is_local {
+                return value.index;
+            }
+        }
+
+        if count == MAX_UPVALUES {
+            self.error("Too many closure variables in function.");
+            return 0;
+        }
+        self.compiler.upvalues[count] = UpValue { index, is_local };
+        self.compiler.function.upvalue_count += 1;
+        self.compiler.function.upvalue_count
     }
 
     fn identifier_constant(&mut self) -> usize {
@@ -734,6 +800,11 @@ impl<'a> Parser<'a> {
             let function = std::mem::replace(&mut self.compiler, *new_cc).function;
             self.emit_closure(Value::Function(function));
         }
+
+        // for upvalue in self.compiler.upvalues.iter() {
+        //     self.emit_byte(Ordupvalue.is_local);
+        //     self.emit_byte(upvalue.index);
+        // }
     }
 
     fn var_statement(&mut self) {
