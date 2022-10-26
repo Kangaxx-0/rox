@@ -89,7 +89,8 @@ pub struct Compiler {
     scope_depth: i32,
     function: ObjFunction,
     function_type: FunctionType,
-    enclosing: Option<Box<Compiler>>, // each compiler points to the enclosing compiler
+    // each compiler points to the enclosing compiler
+    enclosing: Option<Box<Compiler>>,
     // a level of indirection to the local variable, it refers to
     // a local variable in the enclosing function, it keeps track the closed-over like how stack
     // slot index works
@@ -121,6 +122,56 @@ impl Compiler {
                 is_local: false,
             }; MAX_LOCALS],
         }
+    }
+
+    fn resolve_local(&mut self, bytes: &[u8], name: &Token) -> Option<usize> {
+        let token_literal = &bytes[name.start..name.start + name.length];
+        for idx in (0..self.local_count).rev() {
+            let local = self.locals[idx];
+            let local_literal = &bytes[local.name.start..local.name.start + local.name.length];
+            if local_literal == token_literal {
+                return Some(idx);
+            }
+        }
+        None
+    }
+
+    fn resolve_upvalue(&mut self, bytes: &[u8], name: &Token) -> Option<usize> {
+        if self.enclosing.is_none() {
+            return None;
+        }
+
+        // First, we look for a matching local variable in the current enclosing function.
+        // If we find one, we capture and return.
+        let enclosing = self.enclosing.as_mut().unwrap();
+        if let Some(local_index) = enclosing.resolve_local(bytes, name) {
+            return Some(self.add_upvalue(local_index, true));
+        }
+
+        // Otherwise, we look for a local variable beyond the immediate enclosing function recursively.
+        // When a local variable is found, the most deeply nested call to resolve_upvalue captures it
+        // and returns the index.
+        match self.resolve_upvalue(bytes, name) {
+            Some(index) => Some(self.add_upvalue(index, false)),
+            None => None,
+        }
+    }
+
+    fn add_upvalue(&mut self, index: usize, is_local: bool) -> usize {
+        let count = self.function.upvalue_count;
+        for value in self.upvalues.iter() {
+            if value.index == index && value.is_local == is_local {
+                return value.index;
+            }
+        }
+
+        if count == MAX_UPVALUES {
+            // TODO -  propagate error back to the parser
+            panic!("Too many closure variables in function.");
+        }
+        self.upvalues[count] = UpValue { index, is_local };
+        self.function.upvalue_count += 1;
+        self.function.upvalue_count
     }
 }
 
@@ -561,7 +612,7 @@ impl<'a> Parser<'a> {
     }
 
     fn compile_named_variable(&mut self, name: Token, can_assign: bool) {
-        let arg = self.resolve_local(&name);
+        let arg = self.compiler.resolve_local(self.scanner.bytes, &name);
         // Compiler walks the block scopes for the current function from innermost to outermost. If
         // it does not find the variable in the current scope, it looks for a local variable in any
         // of the surrounding functions
@@ -575,7 +626,7 @@ impl<'a> Parser<'a> {
                     self.emit_byte(OpCode::GetLocal(index));
                 }
             }
-            None => match self.resolve_upvalue(&name) {
+            None => match self.compiler.resolve_upvalue(self.scanner.bytes, &name) {
                 Some(index) => {
                     if self.match_token(TokenType::Equal) && can_assign {
                         self.expression();
@@ -595,56 +646,6 @@ impl<'a> Parser<'a> {
                 }
             },
         }
-    }
-
-    fn resolve_local(&mut self, name: &Token) -> Option<usize> {
-        let token_literal = &self.scanner.bytes[name.start..name.start + name.length];
-        for idx in (0..self.compiler.local_count).rev() {
-            let local = self.compiler.locals[idx];
-            let local_literal =
-                &self.scanner.bytes[local.name.start..local.name.start + local.name.length];
-            if local_literal == token_literal {
-                return Some(idx);
-            }
-        }
-        None
-    }
-
-    fn resolve_upvalue(&mut self, name: &Token) -> Option<usize> {
-        if self.compiler.enclosing.is_none() {
-            return None;
-        }
-
-        // First, we look for a matching local variable in the current enclosing function.
-        // If we find one, we capture and return.
-        if let Some(local_index) = self.resolve_local(name) {
-            return Some(self.add_upvalue(local_index, true));
-        }
-
-        // Otherwise, we look for a local variable beyond the immediate enclosing function recursively.
-        // When a local variable is found, the most deeply nested call to resolve_upvalue captures it
-        // and returns the index.
-        match self.resolve_upvalue(name) {
-            Some(index) => Some(self.add_upvalue(index, false)),
-            None => None,
-        }
-    }
-
-    fn add_upvalue(&mut self, index: usize, is_local: bool) -> usize {
-        let count = self.compiler.function.upvalue_count;
-        for value in self.compiler.upvalues.iter() {
-            if value.index == index && value.is_local == is_local {
-                return value.index;
-            }
-        }
-
-        if count == MAX_UPVALUES {
-            self.error("Too many closure variables in function.");
-            return 0;
-        }
-        self.compiler.upvalues[count] = UpValue { index, is_local };
-        self.compiler.function.upvalue_count += 1;
-        self.compiler.function.upvalue_count
     }
 
     fn identifier_constant(&mut self) -> usize {
