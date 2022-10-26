@@ -202,7 +202,6 @@ typedef enum {
 
 关于新的改动，虚拟机只采用调用方法执行代码这一种方法，每次编译方法结束返回的`ObjFuntion`都会被添加到虚拟机的`Frames`. 每当虚拟器执行`run`方法时，虚拟机进行出栈操作获得最后一个`frame`从来解析和执行指令
 > With the new change, vm alwayas runs code by invoking a function, and every time `compile` function returns a `ObjFunction` and it will be pushed into `Frames`. When `vm` calls `run` function, it pops the last frame and looks into the `Chunk`, run the instructions.
- = resolveLocal(**compiler->enclosing,** name);
 
 函数是什么？
 > what is function?
@@ -218,7 +217,6 @@ typedef enum {
 
 函数`ObjFunction`和全部变量类似，存储在哈希表中
 > Fuction `Objfunct` like global variable, is saved in our `Hashtable`
-
 
 # 13. 闭包
 > # 13. Closures
