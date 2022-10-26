@@ -8,6 +8,11 @@ pub struct HashKeyString {
     pub hash: u64,
 }
 
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
+struct ObjUpvalue {
+    location: Vec<Value>,
+}
+
 // Define a new type for the function.
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd)]
 pub struct ObjFunction {
