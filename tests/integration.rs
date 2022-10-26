@@ -949,6 +949,25 @@ fn rox_func_call_return4() -> TestResult {
 }
 
 #[test]
+fn rox_nested_func_call() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(){
+               fun bar(){
+                   print "bar";
+               }
+
+               return bar;
+            
+            }
+            let x = foo();
+            x();
+        "#,
+        "bar",
+    )
+}
+
+#[test]
 fn rox_func_dup_call() -> TestResult {
     run_test_contains(
         r#"
