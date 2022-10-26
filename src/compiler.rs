@@ -774,6 +774,7 @@ impl<'a> Parser<'a> {
             kind,
         );
         let old_cc = std::mem::replace(&mut self.compiler, compiler);
+        // set the enclosing function which is also known as the parent function
         self.compiler.enclosing = Some(Box::new(old_cc));
         self.begin_scope();
 
