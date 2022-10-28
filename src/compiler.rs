@@ -1,5 +1,5 @@
 use crate::chunk::Chunk;
-use crate::objects::ObjFunction;
+use crate::objects::{ObjFunction, UpValue, MAX_UPVALUES};
 use crate::op_code::OpCode;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
@@ -7,7 +7,6 @@ use crate::utils::convert_slice_to_string;
 use crate::value::Value;
 
 const MAX_LOCALS: usize = 256;
-const MAX_UPVALUES: usize = 256;
 
 //FIXME - remove dead_code
 #[allow(dead_code)]
@@ -77,12 +76,7 @@ enum FunctionType {
     Script,
 }
 
-#[derive(Clone, Copy)]
-pub struct UpValue {
-    index: usize,
-    is_local: bool,
-}
-
+// compiler here is a chunk, each function's coding living in separate chunk.
 pub struct Compiler {
     locals: Vec<Local>,
     local_count: usize,
@@ -91,10 +85,6 @@ pub struct Compiler {
     function_type: FunctionType,
     // each compiler points to the enclosing compiler
     enclosing: Option<Box<Compiler>>,
-    // a level of indirection to the local variable, it refers to
-    // a local variable in the enclosing function, it keeps track the closed-over like how stack
-    // slot index works
-    upvalues: [UpValue; MAX_UPVALUES],
 }
 
 impl Compiler {
@@ -117,10 +107,6 @@ impl Compiler {
             function: ObjFunction::new(name),
             function_type: types,
             enclosing: None,
-            upvalues: [UpValue {
-                index: 0,
-                is_local: false,
-            }; MAX_LOCALS],
         }
     }
 
@@ -137,13 +123,11 @@ impl Compiler {
     }
 
     fn resolve_upvalue(&mut self, bytes: &[u8], name: &Token) -> Option<usize> {
-        if self.enclosing.is_none() {
-            return None;
-        }
+        self.enclosing.as_ref()?;
 
         // First, we look for a matching local variable in the current enclosing function.
-        // If we find one, we capture and return.
-        let enclosing = self.enclosing.as_mut().unwrap();
+        // If we find one, we capture and return the index of local variable in the enclosing function.
+        let enclosing = self.enclosing.as_mut().expect("enclosing is nil");
         if let Some(local_index) = enclosing.resolve_local(bytes, name) {
             return Some(self.add_upvalue(local_index, true));
         }
@@ -151,15 +135,13 @@ impl Compiler {
         // Otherwise, we look for a local variable beyond the immediate enclosing function recursively.
         // When a local variable is found, the most deeply nested call to resolve_upvalue captures it
         // and returns the index.
-        match self.resolve_upvalue(bytes, name) {
-            Some(index) => Some(self.add_upvalue(index, false)),
-            None => None,
-        }
+        self.resolve_upvalue(bytes, name)
+            .map(|upvalue_index| self.add_upvalue(upvalue_index, false))
     }
 
     fn add_upvalue(&mut self, index: usize, is_local: bool) -> usize {
-        let count = self.function.upvalue_count;
-        for value in self.upvalues.iter() {
+        let count = self.function.upvalues.len();
+        for value in self.function.upvalues.iter() {
             if value.index == index && value.is_local == is_local {
                 return value.index;
             }
@@ -169,9 +151,9 @@ impl Compiler {
             // TODO -  propagate error back to the parser
             panic!("Too many closure variables in function.");
         }
-        self.upvalues[count] = UpValue { index, is_local };
-        self.function.upvalue_count += 1;
-        self.function.upvalue_count
+
+        self.function.upvalues.push(UpValue { index, is_local });
+        count
     }
 }
 
@@ -570,6 +552,7 @@ impl<'a> Parser<'a> {
     }
 
     fn declare_variable(&mut self) {
+        // Global variables are implicitly declared.
         if self.compiler.scope_depth == 0 {
             return;
         }
@@ -785,8 +768,8 @@ impl<'a> Parser<'a> {
                 if self.compiler.function.arity == u8::MAX {
                     self.error_at_current("Cannot have more than 255 parameters.");
                 }
-                let constant = self.variable("Expect parameter name.");
-                self.define_variable(constant);
+                let index = self.variable("Expect parameter name.");
+                self.define_variable(index);
                 if !self.match_token(TokenType::Comma) {
                     break;
                 }
@@ -904,10 +887,10 @@ impl<'a> Parser<'a> {
     }
 
     fn fun_statement(&mut self, kind: FunctionType) {
-        let global = self.variable("Expect function name.");
+        let index = self.variable("Expect function name.");
         self.mark_initialized();
         self.function(kind);
-        self.define_variable(global);
+        self.define_variable(index);
     }
 
     fn return_statement(&mut self) {

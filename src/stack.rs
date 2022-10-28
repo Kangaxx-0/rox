@@ -18,6 +18,12 @@ impl Stack {
         Stack { values: Vec::new() }
     }
 
+    pub fn with_capacity(capacity: usize) -> Stack {
+        Stack {
+            values: Vec::with_capacity(capacity),
+        }
+    }
+
     pub fn push(&mut self, value: Value) {
         self.values.push(value);
     }
