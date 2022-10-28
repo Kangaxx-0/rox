@@ -136,11 +136,11 @@ impl Vm {
     fn resolve_vm_upvalue(&mut self, index: usize) -> ObjUpValue {
         for vm_upvalue in self.vm_upvalues.iter() {
             if vm_upvalue.location == index {
-                return *vm_upvalue;
+                return vm_upvalue.clone();
             }
         }
         let upvalue = ObjUpValue::new(index);
-        self.vm_upvalues.push(upvalue);
+        self.vm_upvalues.push(upvalue.clone());
         upvalue
     }
 
@@ -355,6 +355,9 @@ impl Vm {
                         Value::Number(v) => println!("Printing value of {}", v),
                         Value::Bool(v) => println!("Printing value of {}", v),
                         Value::Nil => println!("nil"),
+                        Value::Closure(v) => {
+                            println!("Printing value of {}", v.function.name.value)
+                        }
                         _ => println!("unknown value"),
                     }
                 }
@@ -408,15 +411,37 @@ impl Vm {
                         }
                     }
                 }
-                OpCode::GetLocal(v) => {
-                    let addr = self.current_frame().slots + v + 1;
+                OpCode::GetLocal(index) => {
+                    let addr = self.current_frame().slots + index + 1;
                     let val = &self.stack.values[addr];
                     self.push(val.clone());
                 }
-                OpCode::SetLocal(v) => {
-                    let addr = self.current_frame().slots + v + 1;
+                OpCode::GetUpvalue(index) => {
+                    let res = {
+                        let val = self.current_frame().closure.obj_upvalues[index].clone();
+                        if let Some(val) = val.closed {
+                            val
+                        } else {
+                            self.stack.values[val.location].clone()
+                        }
+                    };
+
+                    self.push(res);
+                }
+                OpCode::SetLocal(index) => {
+                    let addr = self.current_frame().slots + index + 1;
                     let val = self.peek(0).expect("unable to pop value");
                     self.stack.values[addr] = val.clone();
+                }
+                OpCode::SetUpvalue(index) => {
+                    let mut obj_upvalue =
+                        self.current_frame_mut().closure.obj_upvalues[index].clone();
+                    let val = self.peek(0).expect("unable to pop value");
+                    if obj_upvalue.closed.is_none() {
+                        self.stack.values[obj_upvalue.location] = val.clone();
+                    } else {
+                        obj_upvalue.closed = Some(val.clone());
+                    }
                 }
                 OpCode::JumpIfFalse(offset) => {
                     if is_falsey(self.peek(0).expect("unable to peek value")) {
@@ -446,21 +471,15 @@ impl Vm {
                         let mut closure = ObjClosure::new(f);
                         for upvalue in &closure.function.upvalues {
                             let obj_upvalue = if upvalue.is_local {
-                                let index = self.current_frame().slots + upvalue.index;
+                                let index = self.current_frame().slots + upvalue.index + 1;
                                 self.resolve_vm_upvalue(index)
                             } else {
-                                self.current_frame().closure.obj_upvalues[upvalue.index]
+                                self.current_frame().closure.obj_upvalues[upvalue.index].clone()
                             };
                             closure.obj_upvalues.push(obj_upvalue)
                         }
                         self.push(Value::Closure(closure.clone()));
                     }
-                }
-                OpCode::GetUpvalue(v) => {
-                    todo!()
-                }
-                OpCode::SetUpvalue(v) => {
-                    todo!()
                 }
                 _ => {
                     println!("Unknown operation code during interpreting!");

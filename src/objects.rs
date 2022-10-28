@@ -22,14 +22,18 @@ impl UpValue {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, PartialOrd)]
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
 pub struct ObjUpValue {
     pub location: usize,
+    pub closed: Option<Value>,
 }
 
 impl ObjUpValue {
     pub fn new(location: usize) -> Self {
-        Self { location }
+        Self {
+            location,
+            closed: None,
+        }
     }
 }
 
@@ -60,7 +64,7 @@ impl ObjFunction {
 }
 
 // Define a new type for closures.
-#[derive(PartialEq, Eq, Debug, Clone, PartialOrd)]
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
 pub struct ObjClosure {
     pub function: ObjFunction, // closure shares the same code and constants as the function
     pub obj_upvalues: Vec<ObjUpValue>, // every closure maintains an array of upvalues

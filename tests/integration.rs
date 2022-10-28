@@ -944,7 +944,7 @@ fn rox_func_call_return4() -> TestResult {
             var res = bar(3);
             print res;
         "#,
-        "false",
+        "Printing value of 3",
     )
 }
 
@@ -957,11 +957,10 @@ fn rox_nested_func_call() -> TestResult {
                    print "bar";
                }
 
-               return bar;
+               bar ();
             
             }
-            let x = foo();
-            x();
+            foo();
         "#,
         "bar",
     )
@@ -1048,12 +1047,33 @@ fn rox_closure() -> TestResult {
             fun outer() {
                 var x = "outer";
                 fun inner() {
-                    print x;
+                    print x + " here!";
                 }
                 inner();
             }
             outer();
         "#,
-        "global1",
+        "outer here!",
     )
 }
+
+// #[test]
+// fn rox_closure2() -> TestResult {
+//     run_test_contains(
+//         r#"
+//             fun outer() {
+//                 var x = "outer";
+//                 fun middle(){
+//                     fun inner() {
+//                         print x + " here!";
+//                     }
+//                     inner();
+//                 }
+//                 return middle;
+//             }
+//             var middle = outer();
+//             middle();
+//         "#,
+//         "outer here!",
+//     )
+// }

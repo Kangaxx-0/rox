@@ -123,20 +123,21 @@ impl Compiler {
     }
 
     fn resolve_upvalue(&mut self, bytes: &[u8], name: &Token) -> Option<usize> {
-        self.enclosing.as_ref()?;
-
         // First, we look for a matching local variable in the current enclosing function.
         // If we find one, we capture and return the index of local variable in the enclosing function.
-        let enclosing = self.enclosing.as_mut().expect("enclosing is nil");
-        if let Some(local_index) = enclosing.resolve_local(bytes, name) {
-            return Some(self.add_upvalue(local_index, true));
-        }
+        if let Some(enclosing) = self.enclosing.as_mut() {
+            if let Some(index) = enclosing.resolve_local(bytes, name) {
+                return Some(self.add_upvalue(index, true));
+            }
+            // Otherwise, we look for a local variable beyond the immediate enclosing function recursively.
+            // When a local variable is found, the most deeply nested call to resolve_upvalue captures it
+            // and returns the index.
 
-        // Otherwise, we look for a local variable beyond the immediate enclosing function recursively.
-        // When a local variable is found, the most deeply nested call to resolve_upvalue captures it
-        // and returns the index.
-        self.resolve_upvalue(bytes, name)
-            .map(|upvalue_index| self.add_upvalue(upvalue_index, false))
+            if let Some(index) = enclosing.resolve_local(bytes, name) {
+                return Some(self.add_upvalue(index, true));
+            }
+        }
+        None
     }
 
     fn add_upvalue(&mut self, index: usize, is_local: bool) -> usize {
