@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
-use crate::objects::ObjClosure;
+use crate::objects::{ObjClosure, ObjUpValue, MAX_UPVALUES};
 use crate::{
     hashtable::HashTable,
     objects::{HashKeyString, ObjNative},
@@ -44,6 +44,7 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
+    vm_upvalues: Vec<ObjUpValue>,
 }
 
 impl Vm {
@@ -52,6 +53,7 @@ impl Vm {
             stack: Stack::new(),
             table: HashTable::new(),
             frames: Vec::with_capacity(FRAME_MAX),
+            vm_upvalues: Vec::with_capacity(MAX_UPVALUES),
         };
         res.define_native(ObjNative::new("clock".to_string(), clock_native));
 
@@ -129,6 +131,17 @@ impl Vm {
         frame.slots = stack_top;
         self.frames.push(frame);
         true
+    }
+
+    fn resolve_vm_upvalue(&mut self, index: usize) -> ObjUpValue {
+        for vm_upvalue in self.vm_upvalues.iter() {
+            if vm_upvalue.location == index {
+                return *vm_upvalue;
+            }
+        }
+        let upvalue = ObjUpValue::new(index);
+        self.vm_upvalues.push(upvalue);
+        upvalue
     }
 
     fn define_native(&mut self, native: ObjNative) {
@@ -430,9 +443,24 @@ impl Vm {
                 OpCode::Closure(v) => {
                     let val = self.current_chunk().constants[v].clone();
                     if let Value::Function(f) = val {
-                        let closure = ObjClosure::new(f);
-                        self.push(Value::Closure(closure));
+                        let mut closure = ObjClosure::new(f);
+                        for upvalue in &closure.function.upvalues {
+                            let obj_upvalue = if upvalue.is_local {
+                                let index = self.current_frame().slots + upvalue.index;
+                                self.resolve_vm_upvalue(index)
+                            } else {
+                                self.current_frame().closure.obj_upvalues[upvalue.index]
+                            };
+                            closure.obj_upvalues.push(obj_upvalue)
+                        }
+                        self.push(Value::Closure(closure.clone()));
                     }
+                }
+                OpCode::GetUpvalue(v) => {
+                    todo!()
+                }
+                OpCode::SetUpvalue(v) => {
+                    todo!()
                 }
                 _ => {
                     println!("Unknown operation code during interpreting!");

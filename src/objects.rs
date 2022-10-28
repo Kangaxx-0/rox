@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::{chunk::Chunk, utils::hash, value::Value};
+pub const MAX_UPVALUES: usize = 256;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd)]
 pub struct HashKeyString {
@@ -8,9 +9,28 @@ pub struct HashKeyString {
     pub hash: u64,
 }
 
-#[derive(PartialEq, Debug, Clone, PartialOrd)]
-struct ObjUpvalue {
-    location: Vec<Value>,
+// An upvalue refers to a local variable in an enclosing function.
+#[derive(PartialEq, Eq, Debug, Copy, Clone, PartialOrd)]
+pub struct UpValue {
+    pub index: usize, // It takes the address of the slot where the closed-over variable lives
+    pub is_local: bool,
+}
+
+impl UpValue {
+    pub fn new(index: usize, is_local: bool) -> Self {
+        Self { index, is_local }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Copy, Clone, PartialOrd)]
+pub struct ObjUpValue {
+    pub location: usize,
+}
+
+impl ObjUpValue {
+    pub fn new(location: usize) -> Self {
+        Self { location }
+    }
 }
 
 // Define a new type for the function.
@@ -19,9 +39,10 @@ pub struct ObjFunction {
     pub arity: u8,
     pub chunk: Chunk,
     pub name: HashKeyString,
-    // number of upvalues the functions uses. It is stored here because
-    // we need know the count at runtime
-    pub upvalue_count: usize,
+    // upvalues is a level of indirection to the local variable, it refers to
+    // a local variable in the enclosing/parent function, it keeps track the closed-over like how stack
+    // slot index works
+    pub upvalues: Vec<UpValue>,
 }
 
 impl ObjFunction {
@@ -33,7 +54,7 @@ impl ObjFunction {
                 hash: hash(&name),
                 value: name,
             },
-            upvalue_count: 0,
+            upvalues: Vec::with_capacity(MAX_UPVALUES),
         }
     }
 }
@@ -42,11 +63,16 @@ impl ObjFunction {
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd)]
 pub struct ObjClosure {
     pub function: ObjFunction, // closure shares the same code and constants as the function
+    pub obj_upvalues: Vec<ObjUpValue>, // every closure maintains an array of upvalues
 }
 
 impl ObjClosure {
     pub fn new(function: ObjFunction) -> Self {
-        Self { function }
+        let upvalues = Vec::with_capacity(function.upvalues.len());
+        Self {
+            function,
+            obj_upvalues: upvalues,
+        }
     }
 }
 
