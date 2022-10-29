@@ -1057,23 +1057,42 @@ fn rox_closure() -> TestResult {
     )
 }
 
-// #[test]
-// fn rox_closure2() -> TestResult {
-//     run_test_contains(
-//         r#"
-//             fun outer() {
-//                 var x = "outer";
-//                 fun middle(){
-//                     fun inner() {
-//                         print x + " here!";
-//                     }
-//                     inner();
-//                 }
-//                 return middle;
-//             }
-//             var middle = outer();
-//             middle();
-//         "#,
-//         "outer here!",
-//     )
-// }
+#[test]
+fn rox_nested_closure() -> TestResult {
+    run_test_contains(
+        r#"
+            fun outer() {
+                var x = "outer";
+                fun middle(){
+                    fun inner() {
+                        print x;
+                    }
+                    inner();
+                }
+                middle();
+            }
+            outer();
+        "#,
+        "outer",
+    )
+}
+
+#[test]
+fn rox_closure_with_param() -> TestResult {
+    run_test_contains(
+        r#"
+            fun outer(y) {
+                var x = 1;
+                fun middle(){
+                    fun inner() {
+                        print x + y + 1;
+                    }
+                    inner();
+                }
+                middle();
+            }
+            outer(2);
+        "#,
+        "4",
+    )
+}

@@ -133,8 +133,8 @@ impl Compiler {
             // When a local variable is found, the most deeply nested call to resolve_upvalue captures it
             // and returns the index.
 
-            if let Some(index) = enclosing.resolve_local(bytes, name) {
-                return Some(self.add_upvalue(index, true));
+            if let Some(index) = enclosing.resolve_upvalue(bytes, name) {
+                return Some(self.add_upvalue(index, false));
             }
         }
         None
