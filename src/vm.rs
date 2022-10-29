@@ -267,7 +267,7 @@ impl Vm {
             // Enable this to see the chunk and stack
             // self.current_chunk()
             //     .disassemble_instruction(self.current_frame().ip);
-            self.print_stack();
+            // self.print_stack();
             self.current_frame_mut().ip += 1;
             match instruction {
                 OpCode::Return => {
@@ -355,9 +355,6 @@ impl Vm {
                         Value::Number(v) => println!("Printing value of {}", v),
                         Value::Bool(v) => println!("Printing value of {}", v),
                         Value::Nil => println!("nil"),
-                        Value::Closure(v) => {
-                            println!("Printing value of {}", v.function.name.value)
-                        }
                         _ => println!("unknown value"),
                     }
                 }
@@ -489,11 +486,11 @@ impl Vm {
         }
     }
 
-    fn print_stack(&self) {
-        for value in self.stack.clone() {
-            println!("[{}]", value);
-        }
-    }
+    // fn print_stack(&self) {
+    //     for value in self.stack.clone() {
+    //         println!("[{}]", value);
+    //     }
+    // }
 }
 
 impl Default for Vm {
