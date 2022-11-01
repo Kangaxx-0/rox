@@ -944,7 +944,25 @@ fn rox_func_call_return4() -> TestResult {
             var res = bar(3);
             print res;
         "#,
-        "false",
+        "Printing value of 3",
+    )
+}
+
+#[test]
+fn rox_nested_func_call() -> TestResult {
+    run_test_contains(
+        r#"
+            fun foo(){
+               fun bar(){
+                   print "bar";
+               }
+
+               bar ();
+            
+            }
+            foo();
+        "#,
+        "bar",
     )
 }
 
@@ -1018,5 +1036,82 @@ fn rox_native_func() -> TestResult {
             print clock();
         "#,
         "clock",
+    )
+}
+
+#[test]
+fn rox_closure() -> TestResult {
+    run_test_contains(
+        r#"
+            var x = "global";
+            fun outer() {
+                var x = "outer";
+                fun inner() {
+                    print x + " here!";
+                }
+                inner();
+            }
+            outer();
+        "#,
+        "outer here!",
+    )
+}
+
+#[test]
+fn rox_closure2() -> TestResult {
+    run_test_contains(
+        r#"
+            var x = "global";
+            fun outer() {
+                var x = "outer";
+                fun inner() {
+                    print x + " here!";
+                }
+                return inner;
+            }
+            var inner = outer();
+            inner();
+        "#,
+        "outer here!",
+    )
+}
+
+#[test]
+fn rox_nested_closure() -> TestResult {
+    run_test_contains(
+        r#"
+            fun outer() {
+                var x = "outer";
+                fun middle(){
+                    fun inner() {
+                        print x;
+                    }
+                    inner();
+                }
+                middle();
+            }
+            outer();
+        "#,
+        "outer",
+    )
+}
+
+#[test]
+fn rox_closure_with_param() -> TestResult {
+    run_test_contains(
+        r#"
+            fun outer(y) {
+                var x = 1;
+                fun middle(){
+                    fun inner() {
+                        print x + y + 1;
+                    }
+                    inner();
+                }
+                middle();
+            }
+            outer(2);
+        "#,
+        "4",
     )
 }

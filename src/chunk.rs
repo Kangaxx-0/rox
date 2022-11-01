@@ -61,6 +61,8 @@ impl Chunk {
         let line = &self.lines[offset];
         match instruction {
             OpCode::Call(v) => self.constant_instruction("Call", Some(*v), offset, *line),
+            OpCode::Closure(v) => self.constant_instruction("Closure", Some(*v), offset, *line),
+            OpCode::CloseUpvalue => self.constant_instruction("CloseUpValue", None, offset, *line),
             OpCode::Constant(v) => self.constant_instruction("Constant", Some(*v), offset, *line),
             OpCode::Negative => self.constant_instruction("Negative", None, offset, *line),
             OpCode::Return => self.constant_instruction("Return", None, offset, *line),
@@ -87,8 +89,20 @@ impl Chunk {
                 self.constant_instruction("Define Global", Some(*v), offset, *line)
             }
             OpCode::GetLocal(v) => self.constant_instruction("Get Local", Some(*v), offset, *line),
+            OpCode::GetUpvalue(v) => {
+                self.constant_instruction("Get Upvalue", Some(*v), offset, *line)
+            }
             OpCode::SetLocal(v) => self.constant_instruction("Set Local", Some(*v), offset, *line),
+            OpCode::SetUpvalue(v) => {
+                self.constant_instruction("Set Upvalue", Some(*v), offset, *line)
+            }
             OpCode::Call(v) => self.constant_instruction("Function", Some(*v), offset, *line),
+            OpCode::GetUpvalue(v) => {
+                self.constant_instruction("Get Upvalue", Some(*v), offset, *line)
+            }
+            OpCode::SetUpvalue(v) => {
+                self.constant_instruction("Set Upvalue", Some(*v), offset, *line)
+            }
             _ => println!("Unknown opcode {}", instruction),
         }
     }

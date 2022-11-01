@@ -1,5 +1,5 @@
 use crate::chunk::Chunk;
-use crate::objects::ObjFunction;
+use crate::objects::{ObjFunction, UpValue, MAX_UPVALUES};
 use crate::op_code::OpCode;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
@@ -68,6 +68,7 @@ struct ParseRule<'a> {
 struct Local {
     name: Token,
     depth: i32,
+    is_captured: bool, // This field is `true` if the local is captured by any later closure.
 }
 
 #[derive(PartialEq, Eq)]
@@ -76,13 +77,15 @@ enum FunctionType {
     Script,
 }
 
+// compiler here is a chunk, each function's coding living in separate chunk.
 pub struct Compiler {
     locals: Vec<Local>,
     local_count: usize,
     scope_depth: i32,
     function: ObjFunction,
     function_type: FunctionType,
-    enclosing: Option<Box<Compiler>>, // each compiler points to the enclosing compiler
+    // each compiler points to the enclosing compiler
+    enclosing: Option<Box<Compiler>>,
 }
 
 impl Compiler {
@@ -97,6 +100,7 @@ impl Compiler {
                         line: 0,
                     },
                     depth: 0,
+                    is_captured: false,
                 };
                 MAX_LOCALS
             ],
@@ -106,6 +110,56 @@ impl Compiler {
             function_type: types,
             enclosing: None,
         }
+    }
+
+    fn resolve_local(&mut self, bytes: &[u8], name: &Token) -> Option<usize> {
+        let token_literal = &bytes[name.start..name.start + name.length];
+        for idx in (0..self.local_count).rev() {
+            let local = self.locals[idx];
+            let local_literal = &bytes[local.name.start..local.name.start + local.name.length];
+            if local_literal == token_literal {
+                return Some(idx);
+            }
+        }
+        None
+    }
+
+    fn resolve_upvalue(&mut self, bytes: &[u8], name: &Token) -> Option<usize> {
+        // First, we look for a matching local variable in the current enclosing function.
+        // If we find one, we capture and return the index of local variable in the enclosing function.
+        if let Some(enclosing) = self.enclosing.as_mut() {
+            if let Some(index) = enclosing.resolve_local(bytes, name) {
+                // When resolving an identifier, if we end up creating a new upvalue for a local
+                // var, we mark it as captured.
+                enclosing.locals[index].is_captured = true;
+                return Some(self.add_upvalue(index, true));
+            }
+            // Otherwise, we look for a local variable beyond the immediate enclosing function recursively.
+            // When a local variable is found, the most deeply nested call to resolve_upvalue captures it
+            // and returns the index.
+
+            if let Some(index) = enclosing.resolve_upvalue(bytes, name) {
+                return Some(self.add_upvalue(index, false));
+            }
+        }
+        None
+    }
+
+    fn add_upvalue(&mut self, index: usize, is_local: bool) -> usize {
+        let count = self.function.upvalues.len();
+        for value in self.function.upvalues.iter() {
+            if value.index == index && value.is_local == is_local {
+                return value.index;
+            }
+        }
+
+        if count == MAX_UPVALUES {
+            // TODO -  propagate error back to the parser
+            panic!("Too many closure variables in function.");
+        }
+
+        self.function.upvalues.push(UpValue { index, is_local });
+        count
     }
 }
 
@@ -504,6 +558,7 @@ impl<'a> Parser<'a> {
     }
 
     fn declare_variable(&mut self) {
+        // Global variables are implicitly declared.
         if self.compiler.scope_depth == 0 {
             return;
         }
@@ -532,7 +587,11 @@ impl<'a> Parser<'a> {
             self.error("Too many local variables in function");
             return;
         }
-        let mut local = Local { name, depth: -1 };
+        let mut local = Local {
+            name,
+            depth: -1,
+            is_captured: false,
+        };
 
         std::mem::swap(
             &mut local,
@@ -546,39 +605,40 @@ impl<'a> Parser<'a> {
     }
 
     fn compile_named_variable(&mut self, name: Token, can_assign: bool) {
-        let arg = self.resolve_local(&name);
+        let arg = self.compiler.resolve_local(self.scanner.bytes, &name);
+        // Compiler walks the block scopes for the current function from innermost to outermost. If
+        // it does not find the variable in the current scope, it looks for a local variable in any
+        // of the surrounding functions
         match arg {
             Some(index) => {
                 if self.match_token(TokenType::Equal) && can_assign {
                     self.expression();
+
                     self.emit_byte(OpCode::SetLocal(index));
                 } else {
                     self.emit_byte(OpCode::GetLocal(index));
                 }
             }
-            None => {
-                let index = self.identifier_constant();
-                if self.match_token(TokenType::Equal) && can_assign {
-                    self.expression();
-                    self.emit_byte(OpCode::SetGlobal(index));
-                } else {
-                    self.emit_byte(OpCode::GetGlobal(index));
+            None => match self.compiler.resolve_upvalue(self.scanner.bytes, &name) {
+                Some(index) => {
+                    if self.match_token(TokenType::Equal) && can_assign {
+                        self.expression();
+                        self.emit_byte(OpCode::SetUpvalue(index));
+                    } else {
+                        self.emit_byte(OpCode::GetUpvalue(index));
+                    }
                 }
-            }
+                None => {
+                    let global = self.identifier_constant();
+                    if self.match_token(TokenType::Equal) && can_assign {
+                        self.expression();
+                        self.emit_byte(OpCode::SetGlobal(global));
+                    } else {
+                        self.emit_byte(OpCode::GetGlobal(global));
+                    }
+                }
+            },
         }
-    }
-
-    fn resolve_local(&mut self, name: &Token) -> Option<usize> {
-        let token_literal = &self.scanner.bytes[name.start..name.start + name.length];
-        for idx in (0..self.compiler.local_count).rev() {
-            let local = self.compiler.locals[idx];
-            let local_literal =
-                &self.scanner.bytes[local.name.start..local.name.start + local.name.length];
-            if local_literal == token_literal {
-                return Some(idx);
-            }
-        }
-        None
     }
 
     fn identifier_constant(&mut self) -> usize {
@@ -598,6 +658,11 @@ impl<'a> Parser<'a> {
         let index = self.current_function_chunk_mut().push_constant(number);
 
         self.emit_byte(OpCode::Constant(index));
+    }
+
+    fn emit_closure(&mut self, value: Value) {
+        let index = self.current_function_chunk_mut().push_constant(value);
+        self.emit_byte(OpCode::Closure(index));
     }
 
     fn emit_loop(&mut self, loop_start: u16) {
@@ -677,7 +742,11 @@ impl<'a> Parser<'a> {
         while self.compiler.local_count > 0
             && self.compiler.locals[self.compiler.local_count - 1].depth > self.compiler.scope_depth
         {
-            self.emit_byte(OpCode::Pop);
+            if self.compiler.locals[self.compiler.local_count - 1].is_captured {
+                self.emit_byte(OpCode::CloseUpvalue);
+            } else {
+                self.emit_byte(OpCode::Pop);
+            }
             self.compiler.local_count -= 1;
         }
     }
@@ -702,6 +771,7 @@ impl<'a> Parser<'a> {
             kind,
         );
         let old_cc = std::mem::replace(&mut self.compiler, compiler);
+        // set the enclosing function which is also known as the parent function
         self.compiler.enclosing = Some(Box::new(old_cc));
         self.begin_scope();
 
@@ -712,8 +782,8 @@ impl<'a> Parser<'a> {
                 if self.compiler.function.arity == u8::MAX {
                     self.error_at_current("Cannot have more than 255 parameters.");
                 }
-                let constant = self.variable("Expect parameter name.");
-                self.define_variable(constant);
+                let index = self.variable("Expect parameter name.");
+                self.define_variable(index);
                 if !self.match_token(TokenType::Comma) {
                     break;
                 }
@@ -727,7 +797,7 @@ impl<'a> Parser<'a> {
 
         if let Some(new_cc) = self.compiler.enclosing.take() {
             let function = std::mem::replace(&mut self.compiler, *new_cc).function;
-            self.emit_constant(Value::Function(function));
+            self.emit_closure(Value::Function(function));
         }
     }
 
@@ -826,10 +896,10 @@ impl<'a> Parser<'a> {
     }
 
     fn fun_statement(&mut self, kind: FunctionType) {
-        let global = self.variable("Expect function name.");
+        let index = self.variable("Expect function name.");
         self.mark_initialized();
         self.function(kind);
-        self.define_variable(global);
+        self.define_variable(index);
     }
 
     fn return_statement(&mut self) {

@@ -1,10 +1,13 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
+use crate::objects::{ObjClosure, ObjUpValue, MAX_UPVALUES};
 use crate::{
     hashtable::HashTable,
-    objects::{HashKeyString, ObjFunction, ObjNative},
+    objects::{HashKeyString, ObjNative},
     op_code::OpCode,
     stack::Stack,
     utils::{hash, is_falsey},
@@ -24,15 +27,15 @@ pub enum InterpretError {
 // represents a single ongoing function call
 // TODO - function calls are a core operation, can we do not use heap allocation here?
 pub struct CallFrame {
-    function: ObjFunction,
+    closure: ObjClosure,
     ip: usize,    // when we return from a function, caller needs to know where to resume
     slots: usize, // points to vm stack at the first slot function can use
 }
 
 impl CallFrame {
-    pub fn new(function: ObjFunction) -> Self {
+    pub fn new(closure: ObjClosure) -> Self {
         Self {
-            function,
+            closure,
             ip: 0,
             slots: 0,
         }
@@ -43,6 +46,7 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
+    open_values: Vec<Rc<RefCell<ObjUpValue>>>,
 }
 
 impl Vm {
@@ -51,6 +55,7 @@ impl Vm {
             stack: Stack::new(),
             table: HashTable::new(),
             frames: Vec::with_capacity(FRAME_MAX),
+            open_values: Vec::with_capacity(MAX_UPVALUES),
         };
         res.define_native(ObjNative::new("clock".to_string(), clock_native));
 
@@ -66,8 +71,10 @@ impl Vm {
         match parser.compile() {
             Ok(function) => {
                 // script function is always at the top of the stack
-                self.push(Value::Function(function.clone()));
-                self.call(function, 0);
+                let closure = ObjClosure::new(function);
+                self.pop();
+                self.push(Value::Closure(closure.clone()));
+                self.call(closure, 0);
                 self.run()
             }
             Err(_) => Err(InterpretError::CompileError),
@@ -90,7 +97,7 @@ impl Vm {
     fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
         match callee {
             // call a function will push the callee to call frame which represents a single ongoing function call
-            Value::Function(function) => self.call(function, arg_count),
+            Value::Closure(closure) => self.call(closure, arg_count),
             Value::NativeFunction(native) => {
                 let idx = self.stack.len() - arg_count;
                 let result = (native.func)(&self.stack.values[idx..]);
@@ -105,11 +112,11 @@ impl Vm {
         }
     }
 
-    fn call(&mut self, function: ObjFunction, arg_count: usize) -> bool {
-        if arg_count != function.arity as usize {
+    fn call(&mut self, closure: ObjClosure, arg_count: usize) -> bool {
+        if arg_count != closure.function.arity as usize {
             println!(
                 "Expected {} arguments but got {}.",
-                function.arity, arg_count
+                closure.function.arity, arg_count
             );
             return false;
         }
@@ -121,11 +128,36 @@ impl Vm {
 
         // calculate the stack start slot for the function
         let stack_top = self.stack.len() - arg_count - 1;
-        let mut frame = CallFrame::new(function);
+        let mut frame = CallFrame::new(closure);
         frame.ip = 0;
         frame.slots = stack_top;
         self.frames.push(frame);
         true
+    }
+
+    fn capture_upvalue(&mut self, index: usize) -> Rc<RefCell<ObjUpValue>> {
+        for vm_upvalue in self.open_values.iter() {
+            if vm_upvalue.borrow().location == index {
+                return Rc::clone(vm_upvalue);
+            }
+        }
+        let upvalue = Rc::new(RefCell::new(ObjUpValue::new(index)));
+        self.open_values.push(Rc::clone(&upvalue));
+        upvalue
+    }
+
+    fn close_upvalues(&mut self, index: usize) {
+        let mut i = 0;
+        while i != self.open_values.len() {
+            let upvalue = Rc::clone(&self.open_values[i]);
+            if upvalue.borrow().location >= index {
+                let upvalue = self.open_values.remove(i);
+                let local = upvalue.borrow().location;
+                upvalue.borrow_mut().closed = Some(self.stack.values[local].clone());
+            } else {
+                i += 1;
+            }
+        }
     }
 
     fn define_native(&mut self, native: ObjNative) {
@@ -141,7 +173,7 @@ impl Vm {
         eprintln!(" [line {}]", line);
 
         for frame in self.frames.iter().rev() {
-            let function = &frame.function;
+            let function = &frame.closure.function;
             let line = function.chunk.lines[frame.ip - 1];
             eprintln!("[line {}] in {}", line, function.name.value);
         }
@@ -238,7 +270,7 @@ impl Vm {
     }
 
     fn current_chunk(&self) -> &Chunk {
-        &self.current_frame().function.chunk
+        &self.current_frame().closure.function.chunk
     }
 
     fn current_line(&self) -> usize {
@@ -251,7 +283,7 @@ impl Vm {
             // Enable this to see the chunk and stack
             // self.current_chunk()
             //     .disassemble_instruction(self.current_frame().ip);
-            self.print_stack();
+            // self.print_stack();
             self.current_frame_mut().ip += 1;
             match instruction {
                 OpCode::Return => {
@@ -259,6 +291,7 @@ impl Vm {
                     let res = self.pop().expect("unable to pop value");
                     // Discard the call frame for the returning function.
                     let frame = self.frames.pop().expect("unable to pop frame");
+                    self.close_upvalues(frame.slots);
                     if self.frames.is_empty() {
                         // we've finished executing the top-level code. We are done
                         return Ok(());
@@ -331,6 +364,10 @@ impl Vm {
                 OpCode::Pop => {
                     self.pop();
                 }
+                OpCode::CloseUpvalue => {
+                    self.close_upvalues(self.stack.values.len() - 1);
+                    self.pop();
+                }
                 OpCode::Print => {
                     let val = self.pop().expect("unable to pop value");
                     match val {
@@ -343,7 +380,9 @@ impl Vm {
                     }
                 }
                 OpCode::DefineGlobal(v) => {
-                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
+                    if let Value::String(s) =
+                        &self.current_frame().closure.function.chunk.constants[v]
+                    {
                         let key = HashKeyString {
                             hash: hash(s),
                             value: s.to_string(),
@@ -353,7 +392,9 @@ impl Vm {
                     }
                 }
                 OpCode::GetGlobal(v) => {
-                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
+                    if let Value::String(s) =
+                        &self.current_frame().closure.function.chunk.constants[v]
+                    {
                         let key = HashKeyString {
                             hash: hash(s),
                             value: s.to_string(),
@@ -367,7 +408,9 @@ impl Vm {
                     }
                 }
                 OpCode::SetGlobal(v) => {
-                    if let Value::String(s) = &self.current_frame().function.chunk.constants[v] {
+                    if let Value::String(s) =
+                        &self.current_frame().closure.function.chunk.constants[v]
+                    {
                         let key = HashKeyString {
                             hash: hash(s),
                             value: s.to_string(),
@@ -386,15 +429,38 @@ impl Vm {
                         }
                     }
                 }
-                OpCode::GetLocal(v) => {
-                    let addr = self.current_frame().slots + v + 1;
+                OpCode::GetLocal(index) => {
+                    let addr = self.current_frame().slots + index + 1;
                     let val = &self.stack.values[addr];
                     self.push(val.clone());
                 }
-                OpCode::SetLocal(v) => {
-                    let addr = self.current_frame().slots + v + 1;
+                OpCode::GetUpvalue(index) => {
+                    let val = Rc::clone(&self.current_frame().closure.obj_upvalues[index]);
+                    let res = {
+                        if let Some(val) = &val.borrow().closed {
+                            val.clone()
+                        } else {
+                            let val = &self.stack.values[val.borrow().location];
+                            val.clone()
+                        }
+                    };
+
+                    self.push(res);
+                }
+                OpCode::SetLocal(index) => {
+                    let addr = self.current_frame().slots + index + 1;
                     let val = self.peek(0).expect("unable to pop value");
                     self.stack.values[addr] = val.clone();
+                }
+                OpCode::SetUpvalue(index) => {
+                    let closure = &self.current_frame().closure.clone();
+                    let mut obj_upvalue = closure.obj_upvalues[index].borrow_mut();
+                    let val = self.peek(0).expect("unable to pop value");
+                    if obj_upvalue.closed.is_none() {
+                        self.stack.values[obj_upvalue.location] = val.clone();
+                    } else {
+                        obj_upvalue.closed = Some(val.clone());
+                    }
                 }
                 OpCode::JumpIfFalse(offset) => {
                     if is_falsey(self.peek(0).expect("unable to peek value")) {
@@ -418,7 +484,22 @@ impl Vm {
                         return Err(InterpretError::RuntimeError);
                     }
                 }
-
+                OpCode::Closure(v) => {
+                    let val = self.current_chunk().constants[v].clone();
+                    if let Value::Function(f) = val {
+                        let mut closure = ObjClosure::new(f);
+                        for upvalue in &closure.function.upvalues {
+                            let obj_upvalue = if upvalue.is_local {
+                                let index = self.current_frame().slots + upvalue.index + 1;
+                                self.capture_upvalue(index)
+                            } else {
+                                self.current_frame().closure.obj_upvalues[upvalue.index].clone()
+                            };
+                            closure.obj_upvalues.push(obj_upvalue)
+                        }
+                        self.push(Value::Closure(closure.clone()));
+                    }
+                }
                 _ => {
                     println!("Unknown operation code during interpreting!");
                     return Err(InterpretError::RuntimeError);
@@ -427,11 +508,12 @@ impl Vm {
         }
     }
 
-    fn print_stack(&self) {
-        for value in self.stack.clone() {
-            println!("[{}]", value);
-        }
-    }
+    // Enable this function to print the stack
+    // fn print_stack(&self) {
+    //     for value in self.stack.clone() {
+    //         println!("[{}]", value);
+    //     }
+    // }
 }
 
 impl Default for Vm {

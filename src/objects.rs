@@ -1,6 +1,7 @@
-use std::fmt;
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{chunk::Chunk, utils::hash, value::Value};
+pub const MAX_UPVALUES: usize = 256;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd)]
 pub struct HashKeyString {
@@ -8,11 +9,50 @@ pub struct HashKeyString {
     pub hash: u64,
 }
 
+// An upvalue refers to a local variable in an enclosing function.
+#[derive(PartialEq, Eq, Debug, Copy, Clone, PartialOrd)]
+pub struct UpValue {
+    pub index: usize, // It takes the address of the slot where the closed-over variable lives
+    pub is_local: bool,
+}
+
+impl UpValue {
+    pub fn new(index: usize, is_local: bool) -> Self {
+        Self { index, is_local }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
+pub struct ObjUpValue {
+    pub location: usize,
+    pub closed: Option<Value>,
+}
+
+impl ObjUpValue {
+    pub fn new(location: usize) -> Self {
+        Self {
+            location,
+            closed: None,
+        }
+    }
+}
+
+impl Default for ObjUpValue {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
+
+// Define a new type for the function.
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd)]
 pub struct ObjFunction {
     pub arity: u8,
     pub chunk: Chunk,
     pub name: HashKeyString,
+    // upvalues is a level of indirection to the local variable, it refers to
+    // a local variable in the enclosing/parent function, it keeps track the closed-over like how stack
+    // slot index works
+    pub upvalues: Vec<UpValue>,
 }
 
 impl ObjFunction {
@@ -24,10 +64,29 @@ impl ObjFunction {
                 hash: hash(&name),
                 value: name,
             },
+            upvalues: Vec::with_capacity(MAX_UPVALUES),
         }
     }
 }
 
+// Define a new type for closures.
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
+pub struct ObjClosure {
+    pub function: ObjFunction, // closure shares the same code and constants as the function
+    pub obj_upvalues: Vec<Rc<RefCell<ObjUpValue>>>, // every closure maintains an array of upvalues
+}
+
+impl ObjClosure {
+    pub fn new(function: ObjFunction) -> Self {
+        let upvalues = Vec::with_capacity(function.upvalues.len());
+        Self {
+            function,
+            obj_upvalues: upvalues,
+        }
+    }
+}
+
+// Define a new type for native functions
 #[derive(Clone)]
 pub struct ObjNative {
     pub name: HashKeyString,

@@ -214,12 +214,46 @@ typedef enum {
 
 函数存在哪里？
 > where is function saved 
+
 函数`ObjFunction`和全部变量类似，存储在哈希表中
 > Fuction `Objfunct` like global variable, is saved in our `Hashtable`
 
 # 13. 闭包
 > # 13. Closures
 
+Side notes:
+
+在实现此章中，我将`resolve_local`,`resolve_upvalue`,`add_upvalue`从`Parser`移动到了`Compiler`, 原因就是因为[书中](http://craftinginterpreters.com/closures.html#upvalues)如下代码
+```
+int local = resolveLocal(**compiler->enclosing,** name);
+```
+> When I was implementing Closure in this chapter, I moved `resolve_local`,`resolve_upvalue` and`add_upvalue` to `Compiler` because of the below code in [Book](http://craftinginterpreters.com/closures.html#upvalues)
+```
+int local = resolveLocal(**compiler->enclosing,** name);
+```
+---
+
 为什么不能用相同的代码实现闭包 - 我们的虚拟机在运行时使用ObjFunction表示函数。这些对象是由前端在编译时创建的。在运行时，虚拟机所做的就是从一个常量表中加载函数对象，并将其与一个名称绑定。在运行时，没有“创建”函数的操作。与字符串和数字字面量一样，它们是纯粹在编译时实例化的常量。而对于闭包，虚拟需要在运行时设法记住捕获一些变量
 > Why can't we use the implementation for clouses? Our VM represents functions at runtime using ObjFunction. These objects are created by the front end during compilation. At runtime, all the VM does is load the function object from a constant table and bind it to a name. There is no operation to “create” a function at runtime. Much like string and number literals, they are constants instantiated purely at compile time. For closure, the VM somehow
 needs to capture variabless at runtime
+
+为了简化clox,原书中将每一个方法都包裹在`ObjClosure`中，既然方式完全不需要捕捉变量。所以我们的实现用闭包替换了方法
+> To simplify the clox, the book's original implementation is to wrap every function in an `ObjClosure`, even if the function doesn’t actually close over and capture any surrounding local variables. That's why we replace function with closure 
+
+关于`UpValue`章节，原书中描述了最简单的方案，但是因为闭包变量常常存活的比当初它被定义的久，这就意味着他们不存在栈上，所以这个方法不可行，例如下面代码
+> Regards to the `UpValue` section, the books mentioned the easiest apporach is not ok because closed over variables sometimes outlive the function where they are declared. That means they won’t always be on the stack, like below code
+
+```
+var x = "global";
+fun outer() {
+  var x = "outer";   // ----> Defined here
+  fun inner() {
+    print x;
+  }
+  inner();
+}                   // -----> Out of scope, pop out 
+outer();            // -----> Used here
+
+```
+
+
