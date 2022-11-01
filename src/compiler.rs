@@ -799,11 +799,6 @@ impl<'a> Parser<'a> {
             let function = std::mem::replace(&mut self.compiler, *new_cc).function;
             self.emit_closure(Value::Function(function));
         }
-
-        // for upvalue in self.compiler.upvalues.iter() {
-        //     self.emit_byte(Ordupvalue.is_local);
-        //     self.emit_byte(upvalue.index);
-        // }
     }
 
     fn var_statement(&mut self) {

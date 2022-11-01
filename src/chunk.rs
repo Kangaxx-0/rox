@@ -122,29 +122,6 @@ impl Chunk {
             None => println!("OP CODE:{} - Line number {}", msg, line),
         }
     }
-
-    //     fn closure_instructon(&self, value: Option<usize>) {
-    //         match value {
-    //             Some(v) => {
-    //                 let closure = &self.constants[v];
-    //
-    //                 match closure {
-    //                     Value::Closure(c) => {
-    //                         for i in 0..c.function.upvalue_count {
-    //                             let is_local = c.function.chunk.code[i];
-    //                             println!(
-    //                                 "OP CODE: Closure - Line number {} - Constant pool index:{} and the value:{}",
-    //                                 "Closure", c.function.chunk[i]., offset, i
-    //                             );
-    //                         }
-    //                     }
-    //                     _ => unreachable!(),
-    //                 }
-    //             }
-    //
-    //             None => println!("OP CODE:{} - Line number {}", msg, line),
-    //         }
-    //     }
 }
 
 impl Default for Chunk {
