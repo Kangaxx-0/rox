@@ -44,7 +44,7 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
-    vm_upvalues: Vec<ObjUpValue>,
+    open_values: Vec<ObjUpValue>,
 }
 
 impl Vm {
@@ -53,7 +53,7 @@ impl Vm {
             stack: Stack::new(),
             table: HashTable::new(),
             frames: Vec::with_capacity(FRAME_MAX),
-            vm_upvalues: Vec::with_capacity(MAX_UPVALUES),
+            open_values: Vec::with_capacity(MAX_UPVALUES),
         };
         res.define_native(ObjNative::new("clock".to_string(), clock_native));
 
@@ -133,15 +133,37 @@ impl Vm {
         true
     }
 
-    fn resolve_vm_upvalue(&mut self, index: usize) -> ObjUpValue {
-        for vm_upvalue in self.vm_upvalues.iter() {
+    fn capture_upvalue(&mut self, index: usize) -> ObjUpValue {
+        for vm_upvalue in self.open_values.iter() {
             if vm_upvalue.location == index {
                 return vm_upvalue.clone();
             }
         }
         let upvalue = ObjUpValue::new(index);
-        self.vm_upvalues.push(upvalue.clone());
+        self.open_values.push(upvalue.clone());
         upvalue
+    }
+
+    fn close_upvalues(&mut self, index: usize) {
+        let mut i = 0;
+        let mut count = self.open_values.len();
+        let mut remove_vec = Vec::new();
+        while i < count {
+            let mut upvalue = &mut self.open_values[i];
+            if upvalue.location >= index {
+                remove_vec.push(i);
+                let local = upvalue.location;
+                upvalue.closed = Some(self.stack.values[local].clone());
+                i += 1;
+                count -= 1;
+            } else {
+                i += 1;
+            }
+        }
+
+        for i in remove_vec {
+            self.open_values.remove(i);
+        }
     }
 
     fn define_native(&mut self, native: ObjNative) {
@@ -275,6 +297,7 @@ impl Vm {
                     let res = self.pop().expect("unable to pop value");
                     // Discard the call frame for the returning function.
                     let frame = self.frames.pop().expect("unable to pop frame");
+                    self.close_upvalues(frame.slots);
                     if self.frames.is_empty() {
                         // we've finished executing the top-level code. We are done
                         return Ok(());
@@ -345,6 +368,10 @@ impl Vm {
                 OpCode::Greater => self.binary_operation(OpCode::Greater)?,
                 OpCode::Less => self.binary_operation(OpCode::Less)?,
                 OpCode::Pop => {
+                    self.pop();
+                }
+                OpCode::CloseUpvalue => {
+                    self.close_upvalues(self.stack.values.len() - 1);
                     self.pop();
                 }
                 OpCode::Print => {
@@ -469,7 +496,7 @@ impl Vm {
                         for upvalue in &closure.function.upvalues {
                             let obj_upvalue = if upvalue.is_local {
                                 let index = self.current_frame().slots + upvalue.index + 1;
-                                self.resolve_vm_upvalue(index)
+                                self.capture_upvalue(index)
                             } else {
                                 self.current_frame().closure.obj_upvalues[upvalue.index].clone()
                             };
