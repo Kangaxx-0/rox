@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::chunk::Chunk;
@@ -44,7 +46,7 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
-    open_values: Vec<ObjUpValue>,
+    open_values: Vec<Rc<RefCell<ObjUpValue>>>,
 }
 
 impl Vm {
@@ -133,36 +135,28 @@ impl Vm {
         true
     }
 
-    fn capture_upvalue(&mut self, index: usize) -> ObjUpValue {
+    fn capture_upvalue(&mut self, index: usize) -> Rc<RefCell<ObjUpValue>> {
         for vm_upvalue in self.open_values.iter() {
-            if vm_upvalue.location == index {
-                return vm_upvalue.clone();
+            if vm_upvalue.borrow().location == index {
+                return Rc::clone(vm_upvalue);
             }
         }
-        let upvalue = ObjUpValue::new(index);
-        self.open_values.push(upvalue.clone());
+        let upvalue = Rc::new(RefCell::new(ObjUpValue::new(index)));
+        self.open_values.push(Rc::clone(&upvalue));
         upvalue
     }
 
     fn close_upvalues(&mut self, index: usize) {
         let mut i = 0;
-        let mut count = self.open_values.len();
-        let mut remove_vec = Vec::new();
-        while i < count {
-            let mut upvalue = &mut self.open_values[i];
-            if upvalue.location >= index {
-                remove_vec.push(i);
-                let local = upvalue.location;
-                upvalue.closed = Some(self.stack.values[local].clone());
-                i += 1;
-                count -= 1;
+        while i != self.open_values.len() {
+            let upvalue = Rc::clone(&self.open_values[i]);
+            if upvalue.borrow().location >= index {
+                let upvalue = self.open_values.remove(i);
+                let local = upvalue.borrow().location;
+                upvalue.borrow_mut().closed = Some(self.stack.values[local].clone());
             } else {
                 i += 1;
             }
-        }
-
-        for i in remove_vec {
-            self.open_values.remove(i);
         }
     }
 
@@ -441,12 +435,13 @@ impl Vm {
                     self.push(val.clone());
                 }
                 OpCode::GetUpvalue(index) => {
+                    let val = Rc::clone(&self.current_frame().closure.obj_upvalues[index]);
                     let res = {
-                        let val = self.current_frame().closure.obj_upvalues[index].clone();
-                        if let Some(val) = val.closed {
-                            val
+                        if let Some(val) = &val.borrow().closed {
+                            val.clone()
                         } else {
-                            self.stack.values[val.location].clone()
+                            let val = &self.stack.values[val.borrow().location];
+                            val.clone()
                         }
                     };
 
@@ -458,8 +453,8 @@ impl Vm {
                     self.stack.values[addr] = val.clone();
                 }
                 OpCode::SetUpvalue(index) => {
-                    let mut obj_upvalue =
-                        self.current_frame_mut().closure.obj_upvalues[index].clone();
+                    let closure = &self.current_frame().closure.clone();
+                    let mut obj_upvalue = closure.obj_upvalues[index].borrow_mut();
                     let val = self.peek(0).expect("unable to pop value");
                     if obj_upvalue.closed.is_none() {
                         self.stack.values[obj_upvalue.location] = val.clone();
@@ -513,6 +508,7 @@ impl Vm {
         }
     }
 
+    // Enable this function to print the stack
     // fn print_stack(&self) {
     //     for value in self.stack.clone() {
     //         println!("[{}]", value);

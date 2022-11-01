@@ -1058,6 +1058,25 @@ fn rox_closure() -> TestResult {
 }
 
 #[test]
+fn rox_closure2() -> TestResult {
+    run_test_contains(
+        r#"
+            var x = "global";
+            fun outer() {
+                var x = "outer";
+                fun inner() {
+                    print x + " here!";
+                }
+                return inner;
+            }
+            var inner = outer();
+            inner();
+        "#,
+        "outer here!",
+    )
+}
+
+#[test]
 fn rox_nested_closure() -> TestResult {
     run_test_contains(
         r#"
