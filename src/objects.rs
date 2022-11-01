@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{chunk::Chunk, utils::hash, value::Value};
 pub const MAX_UPVALUES: usize = 256;
@@ -73,7 +73,7 @@ impl ObjFunction {
 #[derive(PartialEq, Debug, Clone, PartialOrd)]
 pub struct ObjClosure {
     pub function: ObjFunction, // closure shares the same code and constants as the function
-    pub obj_upvalues: Vec<ObjUpValue>, // every closure maintains an array of upvalues
+    pub obj_upvalues: Vec<Rc<RefCell<ObjUpValue>>>, // every closure maintains an array of upvalues
 }
 
 impl ObjClosure {
