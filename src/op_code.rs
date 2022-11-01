@@ -6,6 +6,9 @@ pub enum OpCode {
     Add,
     Call(usize),
     Closure(usize),
+    // Different than Pop, it is needed because the compiler needs to hoist the variable out of the
+    // stack and into its corsponding slot in the upvalue array.
+    CloseUpvalue,
     Constant(usize),
     Divide,
     Equal,
@@ -28,6 +31,7 @@ pub enum OpCode {
     Multiply,
     Negative,
     Placeholder,
+    // When a local variable goes out of scope, the compiler emits a Pop instruction to remove it
     Pop,
     Print,
     Return,
@@ -41,6 +45,7 @@ impl Display for OpCode {
             Self::Add => write!(f, "add operation"),
             Self::Call(v) => write!(f, "system call {}", v),
             Self::Closure(v) => write!(f, "closure {}", v),
+            Self::CloseUpvalue => write!(f, "close upvalue"),
             Self::Constant(v) => write!(f, "constant {}", v),
             Self::Divide => write!(f, "divide operation"),
             Self::Equal => write!(f, "equal operation"),

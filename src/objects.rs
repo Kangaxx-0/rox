@@ -37,6 +37,12 @@ impl ObjUpValue {
     }
 }
 
+impl Default for ObjUpValue {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
+
 // Define a new type for the function.
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd)]
 pub struct ObjFunction {

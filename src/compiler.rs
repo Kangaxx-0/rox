@@ -68,6 +68,7 @@ struct ParseRule<'a> {
 struct Local {
     name: Token,
     depth: i32,
+    is_captured: bool, // This field is `true` if the local is captured by any later closure.
 }
 
 #[derive(PartialEq, Eq)]
@@ -99,6 +100,7 @@ impl Compiler {
                         line: 0,
                     },
                     depth: 0,
+                    is_captured: false,
                 };
                 MAX_LOCALS
             ],
@@ -127,6 +129,9 @@ impl Compiler {
         // If we find one, we capture and return the index of local variable in the enclosing function.
         if let Some(enclosing) = self.enclosing.as_mut() {
             if let Some(index) = enclosing.resolve_local(bytes, name) {
+                // When resolving an identifier, if we end up creating a new upvalue for a local
+                // var, we mark it as captured.
+                enclosing.locals[index].is_captured = true;
                 return Some(self.add_upvalue(index, true));
             }
             // Otherwise, we look for a local variable beyond the immediate enclosing function recursively.
@@ -582,7 +587,11 @@ impl<'a> Parser<'a> {
             self.error("Too many local variables in function");
             return;
         }
-        let mut local = Local { name, depth: -1 };
+        let mut local = Local {
+            name,
+            depth: -1,
+            is_captured: false,
+        };
 
         std::mem::swap(
             &mut local,
@@ -733,7 +742,11 @@ impl<'a> Parser<'a> {
         while self.compiler.local_count > 0
             && self.compiler.locals[self.compiler.local_count - 1].depth > self.compiler.scope_depth
         {
-            self.emit_byte(OpCode::Pop);
+            if self.compiler.locals[self.compiler.local_count - 1].is_captured {
+                self.emit_byte(OpCode::CloseUpvalue);
+            } else {
+                self.emit_byte(OpCode::Pop);
+            }
             self.compiler.local_count -= 1;
         }
     }
