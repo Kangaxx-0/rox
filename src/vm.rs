@@ -43,10 +43,10 @@ impl CallFrame {
 }
 
 pub struct Vm {
-    stack: Stack,
-    table: HashTable,
-    frames: Vec<CallFrame>,
-    open_values: Vec<Rc<RefCell<ObjUpValue>>>,
+    stack: Stack,                              // stack of values, like local variables
+    table: HashTable,                          // global variables resides here
+    frames: Vec<CallFrame>,                    // ongoing function calls
+    open_values: Vec<Rc<RefCell<ObjUpValue>>>, // upvalues that are still open
 }
 
 impl Vm {
