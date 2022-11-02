@@ -255,5 +255,19 @@ fun outer() {
 outer();            // -----> Used here
 
 ```
+# 13. 垃圾收回
+> # 13. Garbage Collection
 
+术语:
+> Terms:
+
+- 根: 根是虚拟机可以无需通过其它对象的引用而直接到达的任何对象。大多数根是全局变量或在栈上
+> - Roots: A root is any object that the VM can reach directly without going through a reference in some other object. Most roots are global variables or on the stack.
+
+- 可达性:
+> - Reachability:
+  - 所有根都是可达的。
+>   - All roots are reachable.
+  - 任何被某个可达对象引用的对象本身是可达的。
+>   - Any object referred to from a reachable object is itself reachable.
 
