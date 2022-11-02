@@ -265,9 +265,9 @@ outer();            // -----> Used here
 > - Roots: A root is any object that the VM can reach directly without going through a reference in some other object. Most roots are global variables or on the stack.
 
 - 可达性:
+    - 所有根都是可达的。
+    - 任何被某个可达对象引用的对象本身是可达的。
 > - Reachability:
-  - 所有根都是可达的。
 >   - All roots are reachable.
-  - 任何被某个可达对象引用的对象本身是可达的。
 >   - Any object referred to from a reachable object is itself reachable.
 
