@@ -2,7 +2,9 @@ use std::fmt::Display;
 
 use crate::objects::{ObjClosure, ObjFunction, ObjNative};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+use gc::{Finalize, Trace};
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Trace, Finalize)]
 pub enum Value {
     Deault,
     Bool(bool),

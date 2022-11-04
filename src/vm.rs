@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::chunk::Chunk;
@@ -13,6 +11,8 @@ use crate::{
     utils::{hash, is_falsey},
     value::Value,
 };
+
+use gc::Gc;
 
 const FRAME_MAX: usize = 64;
 
@@ -46,7 +46,7 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
-    open_values: Vec<Rc<RefCell<ObjUpValue>>>,
+    open_values: Vec<ObjUpValue>,
 }
 
 impl Vm {
@@ -135,25 +135,25 @@ impl Vm {
         true
     }
 
-    fn capture_upvalue(&mut self, index: usize) -> Rc<RefCell<ObjUpValue>> {
+    fn capture_upvalue(&mut self, index: usize) -> ObjUpValue {
         for vm_upvalue in self.open_values.iter() {
-            if vm_upvalue.borrow().location == index {
-                return Rc::clone(vm_upvalue);
+            if vm_upvalue.location == index {
+                return vm_upvalue.clone();
             }
         }
-        let upvalue = Rc::new(RefCell::new(ObjUpValue::new(index)));
-        self.open_values.push(Rc::clone(&upvalue));
+        let upvalue = ObjUpValue::new(index);
+        self.open_values.push(upvalue.clone());
         upvalue
     }
 
     fn close_upvalues(&mut self, index: usize) {
         let mut i = 0;
         while i != self.open_values.len() {
-            let upvalue = Rc::clone(&self.open_values[i]);
-            if upvalue.borrow().location >= index {
-                let upvalue = self.open_values.remove(i);
-                let local = upvalue.borrow().location;
-                upvalue.borrow_mut().closed = Some(self.stack.values[local].clone());
+            let upvalue = &self.open_values[i];
+            if upvalue.location >= index {
+                let mut upvalue = self.open_values.remove(i);
+                let local = upvalue.location;
+                upvalue.closed = Some(self.stack.values[local].clone());
             } else {
                 i += 1;
             }
@@ -435,12 +435,12 @@ impl Vm {
                     self.push(val.clone());
                 }
                 OpCode::GetUpvalue(index) => {
-                    let val = Rc::clone(&self.current_frame().closure.obj_upvalues[index]);
+                    let val = &self.current_frame().closure.obj_upvalues[index];
                     let res = {
-                        if let Some(val) = &val.borrow().closed {
+                        if let Some(val) = &val.closed {
                             val.clone()
                         } else {
-                            let val = &self.stack.values[val.borrow().location];
+                            let val = &self.stack.values[val.location];
                             val.clone()
                         }
                     };
@@ -454,7 +454,7 @@ impl Vm {
                 }
                 OpCode::SetUpvalue(index) => {
                     let closure = &self.current_frame().closure.clone();
-                    let mut obj_upvalue = closure.obj_upvalues[index].borrow_mut();
+                    let mut obj_upvalue = closure.obj_upvalues[index].clone();
                     let val = self.peek(0).expect("unable to pop value");
                     if obj_upvalue.closed.is_none() {
                         self.stack.values[obj_upvalue.location] = val.clone();
@@ -485,9 +485,9 @@ impl Vm {
                     }
                 }
                 OpCode::Closure(v) => {
-                    let val = self.current_chunk().constants[v].clone();
+                    let val = &self.current_chunk().constants[v];
                     if let Value::Function(f) = val {
-                        let mut closure = ObjClosure::new(f);
+                        let mut closure = ObjClosure::new(f.clone());
                         for upvalue in &closure.function.upvalues {
                             let obj_upvalue = if upvalue.is_local {
                                 let index = self.current_frame().slots + upvalue.index + 1;
