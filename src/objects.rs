@@ -33,7 +33,7 @@ impl Deref for ObjUpValue {
     type Target = Value;
 
     fn deref(&self) -> &Self::Target {
-        &self.closed.as_ref().unwrap()
+        self.closed.as_ref().expect("Upvalue not closed")
     }
 }
 
