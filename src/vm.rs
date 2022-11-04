@@ -12,8 +12,6 @@ use crate::{
     value::Value,
 };
 
-use gc::Gc;
-
 const FRAME_MAX: usize = 64;
 
 #[derive(Debug)]
@@ -74,7 +72,7 @@ impl Vm {
                 let closure = ObjClosure::new(function);
                 self.pop();
                 self.push(Value::Closure(closure.clone()));
-                self.call(closure, 0);
+                self.call(&closure, 0);
                 self.run()
             }
             Err(_) => Err(InterpretError::CompileError),
@@ -95,7 +93,7 @@ impl Vm {
     }
 
     fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
-        match callee {
+        match &callee {
             // call a function will push the callee to call frame which represents a single ongoing function call
             Value::Closure(closure) => self.call(closure, arg_count),
             Value::NativeFunction(native) => {
@@ -112,7 +110,7 @@ impl Vm {
         }
     }
 
-    fn call(&mut self, closure: ObjClosure, arg_count: usize) -> bool {
+    fn call(&mut self, closure: &ObjClosure, arg_count: usize) -> bool {
         if arg_count != closure.function.arity as usize {
             println!(
                 "Expected {} arguments but got {}.",
@@ -128,7 +126,7 @@ impl Vm {
 
         // calculate the stack start slot for the function
         let stack_top = self.stack.len() - arg_count - 1;
-        let mut frame = CallFrame::new(closure);
+        let mut frame = CallFrame::new(closure.clone());
         frame.ip = 0;
         frame.slots = stack_top;
         self.frames.push(frame);
@@ -136,9 +134,9 @@ impl Vm {
     }
 
     fn capture_upvalue(&mut self, index: usize) -> ObjUpValue {
-        for vm_upvalue in self.open_values.iter() {
+        for vm_upvalue in self.open_values.iter_mut() {
             if vm_upvalue.location == index {
-                return vm_upvalue.clone();
+                return std::mem::take(vm_upvalue);
             }
         }
         let upvalue = ObjUpValue::new(index);
@@ -188,20 +186,20 @@ impl Vm {
         );
         match code {
             //FIXME - Refactor and simplify the code later
-            OpCode::Add => match (v1, v2) {
-                (Value::Number(v1), Value::Number(v2)) => {
-                    let result = v1 + v2;
+            OpCode::Add => {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
+                    let result = x2 + x1;
                     self.push(Value::Number(result));
                     Ok(())
-                }
-                (Value::String(s1), Value::String(s2)) => {
-                    let mut result = s2;
-                    result.push_str(&s1);
+                } else if let (Value::String(s1), Value::String(s2)) = (&v1, &v2) {
+                    let mut result = s2.clone();
+                    result.push_str(s1);
                     self.push(Value::String(result));
                     Ok(())
+                } else {
+                    Err(InterpretError::RuntimeError)
                 }
-                _ => Err(InterpretError::RuntimeError),
-            },
+            }
             OpCode::Subtract => {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 - x1;
@@ -370,7 +368,7 @@ impl Vm {
                 }
                 OpCode::Print => {
                     let val = self.pop().expect("unable to pop value");
-                    match val {
+                    match &val {
                         Value::Function(v) => println!("{}", v.name.value),
                         Value::String(v) => println!("Printing value of {}", v),
                         Value::Number(v) => println!("Printing value of {}", v),
@@ -497,7 +495,7 @@ impl Vm {
                             };
                             closure.obj_upvalues.push(obj_upvalue)
                         }
-                        self.push(Value::Closure(closure.clone()));
+                        self.push(Value::Closure(closure));
                     }
                 }
                 _ => {
