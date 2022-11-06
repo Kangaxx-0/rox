@@ -1,3 +1,5 @@
+use gc::Gc;
+
 use crate::chunk::Chunk;
 use crate::objects::{ObjFunction, UpValue, MAX_UPVALUES};
 use crate::op_code::OpCode;
@@ -488,7 +490,7 @@ impl<'a> Parser<'a> {
         let start = self.previous.start + 1;
         let length = self.previous.length - 2;
         let value = convert_slice_to_string(self.scanner.bytes, start, start + length);
-        self.emit_constant(Value::String(value));
+        self.emit_constant(Value::String(Gc::new(value)));
     }
 
     fn print(&mut self, _: bool) {
@@ -651,7 +653,7 @@ impl<'a> Parser<'a> {
         self.compiler
             .function
             .chunk
-            .push_constant(Value::String(identifier))
+            .push_constant(Value::String(Gc::new(identifier)))
     }
 
     fn emit_constant(&mut self, number: Value) {
@@ -797,7 +799,7 @@ impl<'a> Parser<'a> {
 
         if let Some(new_cc) = self.compiler.enclosing.take() {
             let function = std::mem::replace(&mut self.compiler, *new_cc).function;
-            self.emit_closure(Value::Function(function));
+            self.emit_closure(Value::Function(Gc::new(function)));
         }
     }
 

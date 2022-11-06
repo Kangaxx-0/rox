@@ -1,5 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use gc::Gc;
+
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
 use crate::objects::{ObjClosure, ObjUpValue, MAX_UPVALUES};
@@ -70,9 +72,10 @@ impl Vm {
             Ok(function) => {
                 // script function is always at the top of the stack
                 let closure = ObjClosure::new(function);
+                let gc_closure = Gc::new(closure);
                 self.pop();
-                self.push(Value::Closure(closure.clone()));
-                self.call(&closure, 0);
+                self.push(Value::Closure(gc_closure.clone()));
+                self.call(&*gc_closure, 0);
                 self.run()
             }
             Err(_) => Err(InterpretError::CompileError),
@@ -160,7 +163,7 @@ impl Vm {
 
     fn define_native(&mut self, native: ObjNative) {
         self.table
-            .insert(native.name.clone(), Value::NativeFunction(native));
+            .insert(native.name.clone(), Value::NativeFunction(Gc::new(native)));
     }
 
     fn runtime_error(&mut self, message: &str) {
@@ -192,9 +195,8 @@ impl Vm {
                     self.push(Value::Number(result));
                     Ok(())
                 } else if let (Value::String(s1), Value::String(s2)) = (&v1, &v2) {
-                    let mut result = s2.clone();
-                    result.push_str(s1);
-                    self.push(Value::String(result));
+                    let result = format!("{}{}", s2, s1);
+                    self.push(Value::String(Gc::new(result)));
                     Ok(())
                 } else {
                     Err(InterpretError::RuntimeError)
@@ -485,7 +487,8 @@ impl Vm {
                 OpCode::Closure(v) => {
                     let val = &self.current_chunk().constants[v];
                     if let Value::Function(f) = val {
-                        let mut closure = ObjClosure::new(f.clone());
+                        let closure = &**f;
+                        let mut closure = ObjClosure::new(closure.clone());
                         for upvalue in &closure.function.upvalues {
                             let obj_upvalue = if upvalue.is_local {
                                 let index = self.current_frame().slots + upvalue.index + 1;
@@ -495,7 +498,7 @@ impl Vm {
                             };
                             closure.obj_upvalues.push(obj_upvalue)
                         }
-                        self.push(Value::Closure(closure));
+                        self.push(Value::Closure(Gc::new(closure)));
                     }
                 }
                 _ => {
@@ -611,8 +614,11 @@ mod tests {
     fn test_string() {
         let mut vm = Vm::new();
         vm.initialize();
-        vm.stack.push(Value::String("hello".to_string()));
-        assert_eq!(vm.stack.pop(), Some(Value::String("hello".to_string())));
+        vm.stack.push(Value::String(Gc::new("hello".to_string())));
+        assert_eq!(
+            vm.stack.pop(),
+            Some(Value::String(Gc::new("hello".to_string())))
+        );
     }
 
     #[test]
