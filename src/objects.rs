@@ -1,7 +1,7 @@
-use std::{fmt, ops::Deref, ops::DerefMut};
+use std::fmt;
 
 use crate::{chunk::Chunk, utils::hash, value::Value};
-use gc::{Finalize, Trace};
+use gc::{Finalize, GcCell, Trace};
 pub const MAX_UPVALUES: usize = 256;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]
@@ -26,31 +26,14 @@ impl UpValue {
 #[derive(PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]
 pub struct ObjUpValue {
     pub location: usize,
-    pub closed: Option<Value>,
-}
-
-impl Deref for ObjUpValue {
-    type Target = Value;
-
-    fn deref(&self) -> &Self::Target {
-        self.closed.as_ref().expect("Upvalue not closed")
-    }
-}
-
-impl DerefMut for ObjUpValue {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self.closed {
-            Some(ref mut value) => value,
-            None => panic!("Cannot deref a closed upvalue"),
-        }
-    }
+    pub closed: GcCell<Option<Value>>,
 }
 
 impl ObjUpValue {
     pub fn new(location: usize) -> Self {
         Self {
             location,
-            closed: None,
+            closed: GcCell::new(None),
         }
     }
 }
