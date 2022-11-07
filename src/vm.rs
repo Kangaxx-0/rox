@@ -1,6 +1,7 @@
+use std::borrow::BorrowMut;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
@@ -152,9 +153,9 @@ impl Vm {
         while i != self.open_values.len() {
             let upvalue = &self.open_values[i];
             if upvalue.location >= index {
-                let mut upvalue = self.open_values.remove(i);
+                let upvalue = self.open_values.remove(i);
                 let local = upvalue.location;
-                upvalue.closed = Some(self.stack.values[local].clone());
+                *upvalue.closed.borrow_mut() = Some(self.stack.values[local].clone());
             } else {
                 i += 1;
             }
@@ -437,7 +438,7 @@ impl Vm {
                 OpCode::GetUpvalue(index) => {
                     let val = &self.current_frame().closure.obj_upvalues[index];
                     let res = {
-                        if let Some(val) = &val.closed {
+                        if let Some(val) = val.closed.borrow().as_ref() {
                             val.clone()
                         } else {
                             let val = &self.stack.values[val.location];
@@ -456,10 +457,10 @@ impl Vm {
                     let closure = &self.current_frame().closure.clone();
                     let mut obj_upvalue = closure.obj_upvalues[index].clone();
                     let val = self.peek(0).expect("unable to pop value");
-                    if obj_upvalue.closed.is_none() {
+                    if obj_upvalue.closed.borrow().is_none() {
                         self.stack.values[obj_upvalue.location] = val.clone();
                     } else {
-                        obj_upvalue.closed = Some(val.clone());
+                        obj_upvalue.closed = GcCell::new(Some(val.clone()));
                     }
                 }
                 OpCode::JumpIfFalse(offset) => {
