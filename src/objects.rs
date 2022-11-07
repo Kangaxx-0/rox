@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{chunk::Chunk, utils::hash, value::Value};
-use gc::{Finalize, GcCell, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 pub const MAX_UPVALUES: usize = 256;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]
@@ -74,7 +74,9 @@ impl ObjFunction {
 #[derive(PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]
 pub struct ObjClosure {
     pub function: ObjFunction, // closure shares the same code and constants as the function
-    pub obj_upvalues: Vec<ObjUpValue>, // every closure maintains an array of upvalues
+    // Gc managed heap allocation is used for both vm open_values
+    // and ObjClosure upvalues
+    pub obj_upvalues: Vec<Gc<ObjUpValue>>, // every closure maintains an array of upvalues
 }
 
 impl ObjClosure {
