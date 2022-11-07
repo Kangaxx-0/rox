@@ -1,7 +1,6 @@
-use std::borrow::BorrowMut;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use gc::{Gc, GcCell};
+use gc::Gc;
 
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
@@ -47,7 +46,9 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
-    open_values: Vec<ObjUpValue>,
+    // Gc managed heap allocation is used for both vm open_values
+    // and ObjClosure upvalues
+    open_values: Vec<Gc<ObjUpValue>>,
 }
 
 impl Vm {
@@ -137,13 +138,13 @@ impl Vm {
         true
     }
 
-    fn capture_upvalue(&mut self, index: usize) -> ObjUpValue {
+    fn capture_upvalue(&mut self, index: usize) -> Gc<ObjUpValue> {
         for vm_upvalue in self.open_values.iter_mut() {
             if vm_upvalue.location == index {
                 return std::mem::take(vm_upvalue);
             }
         }
-        let upvalue = ObjUpValue::new(index);
+        let upvalue = Gc::new(ObjUpValue::new(index));
         self.open_values.push(upvalue.clone());
         upvalue
     }
@@ -455,12 +456,12 @@ impl Vm {
                 }
                 OpCode::SetUpvalue(index) => {
                     let closure = &self.current_frame().closure.clone();
-                    let mut obj_upvalue = closure.obj_upvalues[index].clone();
+                    let obj_upvalue = &closure.obj_upvalues[index];
                     let val = self.peek(0).expect("unable to pop value");
                     if obj_upvalue.closed.borrow().is_none() {
                         self.stack.values[obj_upvalue.location] = val.clone();
                     } else {
-                        obj_upvalue.closed = GcCell::new(Some(val.clone()));
+                        *obj_upvalue.closed.borrow_mut() = Some(val.clone());
                     }
                 }
                 OpCode::JumpIfFalse(offset) => {
