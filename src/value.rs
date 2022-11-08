@@ -2,16 +2,18 @@ use std::fmt::Display;
 
 use crate::objects::{ObjClosure, ObjFunction, ObjNative};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+use gc::{Finalize, Gc, Trace};
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Trace, Finalize)]
 pub enum Value {
     Deault,
     Bool(bool),
     Nil,
     Number(f64),
-    String(String),
-    Function(ObjFunction),
-    NativeFunction(ObjNative),
-    Closure(ObjClosure),
+    String(Gc<String>),
+    Function(Gc<ObjFunction>),
+    NativeFunction(Gc<ObjNative>),
+    Closure(Gc<ObjClosure>),
 }
 
 impl Display for Value {

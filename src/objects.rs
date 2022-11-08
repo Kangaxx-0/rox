@@ -1,16 +1,17 @@
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::fmt;
 
 use crate::{chunk::Chunk, utils::hash, value::Value};
+use gc::{Finalize, Gc, GcCell, Trace};
 pub const MAX_UPVALUES: usize = 256;
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]
 pub struct HashKeyString {
     pub value: String,
     pub hash: u64,
 }
 
 // An upvalue refers to a local variable in an enclosing function.
-#[derive(PartialEq, Eq, Debug, Copy, Clone, PartialOrd)]
+#[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Trace, Finalize)]
 pub struct UpValue {
     pub index: usize, // It takes the address of the slot where the closed-over variable lives
     pub is_local: bool,
@@ -22,17 +23,17 @@ impl UpValue {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, PartialOrd)]
+#[derive(PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]
 pub struct ObjUpValue {
     pub location: usize,
-    pub closed: Option<Value>,
+    pub closed: GcCell<Option<Value>>,
 }
 
 impl ObjUpValue {
     pub fn new(location: usize) -> Self {
         Self {
             location,
-            closed: None,
+            closed: GcCell::new(None),
         }
     }
 }
@@ -44,7 +45,7 @@ impl Default for ObjUpValue {
 }
 
 // Define a new type for the function.
-#[derive(PartialEq, Eq, Debug, Clone, PartialOrd)]
+#[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Trace, Finalize)]
 pub struct ObjFunction {
     pub arity: u8,
     pub chunk: Chunk,
@@ -70,10 +71,12 @@ impl ObjFunction {
 }
 
 // Define a new type for closures.
-#[derive(PartialEq, Debug, Clone, PartialOrd)]
+#[derive(PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]
 pub struct ObjClosure {
     pub function: ObjFunction, // closure shares the same code and constants as the function
-    pub obj_upvalues: Vec<Rc<RefCell<ObjUpValue>>>, // every closure maintains an array of upvalues
+    // Gc managed heap allocation is used for both vm open_values
+    // and ObjClosure upvalues
+    pub obj_upvalues: Vec<Gc<ObjUpValue>>, // every closure maintains an array of upvalues
 }
 
 impl ObjClosure {
@@ -87,9 +90,10 @@ impl ObjClosure {
 }
 
 // Define a new type for native functions
-#[derive(Clone)]
+#[derive(Clone, Trace, Finalize)]
 pub struct ObjNative {
     pub name: HashKeyString,
+    #[unsafe_ignore_trace]
     pub func: fn(&[Value]) -> Value,
 }
 

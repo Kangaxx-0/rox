@@ -33,12 +33,14 @@ Java虚拟机用`constant_pool`表来存储程序中的类/接口/类实例/数�
 
 ```
 cp_info {
+
     u1 tag;
     u1 info[];
 }
 ```
 
 | Constant Kind   | Tag  |
+
 ------------------|------|
 |CONSTANT_Utf8    |   1  |
 |CONSTANT_Integer |   3  |
@@ -93,6 +95,7 @@ TBD
 
 对于解析这部分，理解Vaughan Pratt的“自顶向下算符优先解析”算法有着非常重要的作用
 > For the parsing part, it is important to understand how Vaughan Pratt’s “top-down operator precedence parsing” algorithms works
+
 ```
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 // Precedence symbols:
@@ -164,6 +167,7 @@ typedef enum {
   OBJ_STRING,
 } ObjType;
 ```
+
 
 # 7.哈希表
 > # 7.Hash Tables
