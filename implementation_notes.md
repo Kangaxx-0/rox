@@ -275,3 +275,9 @@ outer();            // -----> Used here
 >   - All roots are reachable.
 >   - Any object referred to from a reachable object is itself reachable.
 
+实现部分是从[rust-gc](https://github.com/Manishearth/rust-gc)拷贝而来，具体实现可以参考代码，这里主要有2点要点:
+- `Gc`的拷贝并不是深拷贝
+- 默认`Gc`是不可改变的，类似`Rc`
+> The implemention is highly borrowed from [rust-gc](https://github.com/Manishearth/rust-gc), please refer to the code for more information, there are two main takeaways:
+>  - `Clone` on `Gc` is not a deep copy.
+>  - `Gc` is immutable by default, like `Rc`
