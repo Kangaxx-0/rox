@@ -1,0 +1,9 @@
+[package]
+name = "rox_gc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gc_derive = { version = "0.4.1", optional = true }
