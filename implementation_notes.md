@@ -281,3 +281,8 @@ outer();            // -----> Used here
 > The implemention is highly borrowed from [rust-gc](https://github.com/Manishearth/rust-gc), please refer to the code for more information, there are two main takeaways:
 >  - `Clone` on `Gc` is not a deep copy.
 >  - `Gc` is immutable by default, like `Rc`
+
+`GcBox` and `GcBoxHeader` diagram
+<aside name="gc">
+<img src="https://github.com/Kangaxx-0/rox/blob/gaxx/rust-gc/assets/rox_gc_memory.png" alt="gc" />
+</aside>
