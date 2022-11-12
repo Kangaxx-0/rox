@@ -6,7 +6,6 @@ use std::{
 
 use crate::Trace;
 
-#[allow(dead_code)]
 struct GcState {
     stats: GcStats,
     config: GcConfig,
@@ -61,17 +60,20 @@ fn collect_garbage(st: &mut GcState) {
 
     struct Unmarked<'a> {
         incoming: &'a Cell<Option<NonNull<GcBox<dyn Trace>>>>,
+        // the current unmarked node
         this: NonNull<GcBox<dyn Trace>>,
     }
 
     unsafe fn mark(head: &Cell<Option<NonNull<GcBox<dyn Trace>>>>) -> Vec<Unmarked<'_>> {
         //walk the tree and mark all reachable nodes
+        //It starts at the head of the list
         let mut mark_head = head.get();
         while let Some(node) = mark_head {
             if (*node.as_ptr()).header.roots() > 0 {
                 (*node.as_ptr()).trace_inner();
             }
 
+            // Then follows the `next` pointer until it reaches the end
             mark_head = (*node.as_ptr()).header.next.get();
         }
 
@@ -80,29 +82,39 @@ fn collect_garbage(st: &mut GcState) {
         let mut unmark_head = head;
         while let Some(node) = unmark_head.get() {
             if (*node.as_ptr()).header.is_marked() {
+                // Unmark the node for the next collection
                 (*node.as_ptr()).header.unmark();
             } else {
+                // Collect the unmarked node
                 unmarked.push(Unmarked {
+                    // Incoming stills points to the start
                     incoming: unmark_head,
                     this: node,
                 });
             }
 
+            // Move to the raw pointer's next slot
             unmark_head = &(*node.as_ptr()).header.next;
         }
 
         unmarked
     }
 
+    // Sweep the tree, dropping all unmarked nodes
     unsafe fn sweep(finalized: Vec<Unmarked<'_>>, bytes_allocated: &mut usize) {
         let _guard = DropGuard::new();
         for node in finalized.into_iter().rev() {
             if (*node.this.as_ptr()).header.is_marked() {
+                // Don't claim the memory if it's still marked
                 continue;
             }
             let incoming = node.incoming;
+            // This is how sweep works:
+            // Raw pointer is owned by Box after below call, and will be deallocated
+            // the memory when `Box` goes out of scope
             let node = Box::from_raw(node.this.as_ptr());
             *bytes_allocated -= mem::size_of_val::<GcBox<_>>(&*node);
+            // Take the value and lave `None` in its place
             incoming.set(node.header.next.take());
         }
     }
@@ -128,7 +140,6 @@ pub struct GcStats {
 }
 
 impl GcStats {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             bytes_allocated: 0,
@@ -156,7 +167,6 @@ pub struct GcConfig {
 }
 
 impl GcConfig {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             threshold: 100,
@@ -176,14 +186,12 @@ impl Default for GcConfig {
     }
 }
 
-#[allow(dead_code)]
 pub struct GcBoxHeader {
     roots: Cell<usize>,
     next: Cell<Option<NonNull<GcBox<dyn Trace>>>>,
 }
 
 impl GcBoxHeader {
-    #[allow(dead_code)]
     #[inline]
     pub fn new(next: Option<NonNull<GcBox<dyn Trace>>>) -> Self {
         Self {
@@ -239,7 +247,6 @@ impl Default for GcBoxHeader {
     }
 }
 
-#[allow(dead_code)]
 #[repr(C)]
 pub struct GcBox<T: Trace + ?Sized + 'static> {
     header: GcBoxHeader,
@@ -247,7 +254,6 @@ pub struct GcBox<T: Trace + ?Sized + 'static> {
 }
 
 impl<T: Trace> GcBox<T> {
-    #[allow(dead_code)]
     #[inline]
     pub fn new(data: T) -> NonNull<Self> {
         GC_STATE.with(|st| {
