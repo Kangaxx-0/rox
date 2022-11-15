@@ -290,7 +290,7 @@ impl<T: Trace> GcBox<T> {
 
 impl<T: Trace + ?Sized> GcBox<T> {
     /// Returns `true` if the two references point to the same `GcBox`
-    pub fn prt_eq(this: &GcBox<T>, other: &GcBox<T>) -> bool {
+    pub fn ptr_eq(this: &GcBox<T>, other: &GcBox<T>) -> bool {
         ptr::eq(&this.header, &other.header)
     }
 
