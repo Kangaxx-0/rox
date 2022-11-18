@@ -1,7 +1,8 @@
 use std::fmt;
 
 use crate::{chunk::Chunk, utils::hash, value::Value};
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc_derive::{Finalize, Trace};
+use rox_gc::{Gc, GcCell};
 pub const MAX_UPVALUES: usize = 256;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]

@@ -14,39 +14,39 @@ fn derive_trace(mut s: Structure<'_>) -> proc_macro2::TokenStream {
 
     s.add_bounds(AddBounds::Fields);
     let trace_impl = s.unsafe_bound_impl(
-        quote!(::gc::Trace),
+        quote!(::rox_gc::Trace),
         quote! {
             #[inline] unsafe fn trace(&self) {
 
                 #[allow(dead_code)]
                 #[inline]
-                unsafe fn mark<T: ::gc::Trace + ?Sized>(it: &T) {
-                    ::gc::Trace::trace(it);
+                unsafe fn mark<T: ::rox_gc::Trace + ?Sized>(it: &T) {
+                    ::rox_gc::Trace::trace(it);
                 }
                 match *self { #trace_body }
             }
             #[inline] unsafe fn root(&self) {
                 #[allow(dead_code)]
                 #[inline]
-                unsafe fn mark<T: ::gc::Trace + ?Sized>(it: &T) {
-                    ::gc::Trace::root(it);
+                unsafe fn mark<T: ::rox_gc::Trace + ?Sized>(it: &T) {
+                    ::rox_gc::Trace::root(it);
                 }
                 match *self { #trace_body }
             }
             #[inline] unsafe fn unroot(&self) {
                 #[allow(dead_code)]
                 #[inline]
-                unsafe fn mark<T: ::gc::Trace + ?Sized>(it: &T) {
-                    ::gc::Trace::unroot(it);
+                unsafe fn mark<T: ::rox_gc::Trace + ?Sized>(it: &T) {
+                    ::rox_gc::Trace::unroot(it);
                 }
                 match *self { #trace_body }
             }
             #[inline] fn finalize_glue(&self) {
-                ::gc::Finalize::finalize(self);
+                ::rox_gc::Finalize::finalize(self);
                 #[allow(dead_code)]
                 #[inline]
-                fn mark<T: ::gc::Trace + ?Sized>(it: &T) {
-                    ::gc::Trace::finalize_glue(it);
+                fn mark<T: ::rox_gc::Trace + ?Sized>(it: &T) {
+                    ::rox_gc::Trace::finalize_glue(it);
                 }
                 match *self { #trace_body }
             }
@@ -60,8 +60,8 @@ fn derive_trace(mut s: Structure<'_>) -> proc_macro2::TokenStream {
         quote!(::std::ops::Drop),
         quote! {
             fn drop(&mut self) {
-                if ::gc::finalizer_safe() {
-                    ::gc::Finalize::finalize(self);
+                if ::rox_gc::finalizer_safe() {
+                    ::rox_gc::Finalize::finalize(self);
                 }
             }
         },
@@ -76,5 +76,5 @@ fn derive_trace(mut s: Structure<'_>) -> proc_macro2::TokenStream {
 decl_derive!([Finalize] => derive_finalize);
 
 fn derive_finalize(s: Structure<'_>) -> proc_macro2::TokenStream {
-    s.unbound_impl(quote!(::gc::Finalize), quote!())
+    s.unbound_impl(quote!(::rox_gc::Finalize), quote!())
 }
