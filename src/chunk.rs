@@ -1,8 +1,7 @@
 use crate::op_code::OpCode;
 use crate::value::Value;
 
-use gc::{Finalize, Trace};
-
+use gc_derive::{Finalize, Trace};
 #[derive(PartialEq, Eq, PartialOrd, Debug, Clone, Trace, Finalize)]
 pub struct Chunk {
     #[unsafe_ignore_trace]

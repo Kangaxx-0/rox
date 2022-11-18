@@ -1,4 +1,4 @@
-use gc::Gc;
+use rox_gc::Gc;
 
 use crate::chunk::Chunk;
 use crate::objects::{ObjFunction, UpValue, MAX_UPVALUES};
