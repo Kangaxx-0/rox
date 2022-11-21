@@ -177,8 +177,11 @@ impl<T: Trace + ?Sized> Deref for Gc<T> {
 impl<T: Trace + ?Sized> Drop for Gc<T> {
     #[inline]
     fn drop(&mut self) {
-        unsafe {
-            self.inner().unroot_inner();
+        // If this pointer is rooted, we need to unroot it.
+        if self.rooted() {
+            unsafe {
+                self.inner().unroot_inner();
+            }
         }
     }
 }
