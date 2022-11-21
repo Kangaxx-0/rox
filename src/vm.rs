@@ -77,7 +77,7 @@ impl Vm {
                 let gc_closure = Gc::new(closure);
                 self.pop();
                 self.push(Value::Closure(gc_closure.clone()));
-                self.call(&*gc_closure, 0);
+                self.call(&gc_closure, 0);
                 self.run()
             }
             Err(_) => Err(InterpretError::CompileError),

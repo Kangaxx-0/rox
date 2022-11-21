@@ -46,7 +46,7 @@ impl Default for ObjUpValue {
 }
 
 // Define a new type for the function.
-#[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Trace, Finalize)]
+#[derive(PartialEq, Debug, Clone, PartialOrd, Trace, Finalize)]
 pub struct ObjFunction {
     pub arity: u8,
     pub chunk: Chunk,

@@ -2,7 +2,7 @@ use crate::op_code::OpCode;
 use crate::value::Value;
 
 use gc_derive::{Finalize, Trace};
-#[derive(PartialEq, Eq, PartialOrd, Debug, Clone, Trace, Finalize)]
+#[derive(PartialEq, PartialOrd, Debug, Clone, Trace, Finalize)]
 pub struct Chunk {
     #[unsafe_ignore_trace]
     pub code: Vec<OpCode>,
