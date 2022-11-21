@@ -20,8 +20,6 @@ impl Drop for GcState {
     }
 }
 
-/// Whether or not the thread is currently in the sweep phase of gc.
-/// During this phase, attempts to deference a `Gc<T>` pointer will trigger a panic.
 thread_local! { pub static GC_DROP: Cell<bool> = Cell::new(false); }
 struct DropGuard;
 
@@ -139,15 +137,6 @@ pub struct GcStats {
     pub collections_perfomed: usize,
 }
 
-impl GcStats {
-    pub fn new() -> Self {
-        Self {
-            bytes_allocated: 0,
-            collections_perfomed: 0,
-        }
-    }
-}
-
 impl Default for GcStats {
     fn default() -> Self {
         Self {
@@ -164,16 +153,6 @@ pub struct GcConfig {
     pub used_space_ratio: f64,
     /// For short running processes it is not worth it to run the GC
     pub leak_on_drop: bool,
-}
-
-impl GcConfig {
-    pub fn new() -> Self {
-        Self {
-            threshold: 100,
-            used_space_ratio: 0.8,
-            leak_on_drop: false,
-        }
-    }
 }
 
 impl Default for GcConfig {
