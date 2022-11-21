@@ -7,9 +7,11 @@ use std::{
     cmp::Ordering,
     fmt::Display,
     hash::{self, Hasher},
+    marker::PhantomData,
     mem,
     ops::{Deref, DerefMut},
     ptr::{self, NonNull},
+    rc::Rc,
 };
 
 pub use crate::gc::{finalizer_safe, GcBox};
@@ -17,7 +19,7 @@ pub use crate::trace::{Finalize, Trace};
 
 pub struct Gc<T: Trace + ?Sized + 'static> {
     ptr_root: Cell<NonNull<GcBox<T>>>,
-    // marker: PhantomData<Rc<T>>,
+    marker: PhantomData<Rc<T>>,
 }
 
 impl<T: Trace> Gc<T> {
@@ -37,7 +39,7 @@ impl<T: Trace> Gc<T> {
     /// assert_eq!(*five, 5);
     /// ```
     pub fn new(value: T) -> Self {
-        assert!(mem::align_of::<Gc<T>>() > 1);
+        assert!(mem::align_of::<GcBox<T>>() > 1);
 
         unsafe {
             // Allocate the memory for the object.
@@ -48,6 +50,7 @@ impl<T: Trace> Gc<T> {
             (*ptr.as_ptr()).value().unroot();
             let gc = Gc {
                 ptr_root: Cell::new(NonNull::new_unchecked(ptr.as_ptr())),
+                marker: PhantomData,
             };
 
             gc.set_root();
@@ -131,7 +134,7 @@ unsafe impl<T: Trace + ?Sized> Trace for Gc<T> {
 
     #[inline]
     unsafe fn unroot(&self) {
-        assert!(!self.rooted(), "Cannot double root a Gc pointer");
+        assert!(self.rooted(), "Cannot double root a Gc pointer");
 
         // Try to get inner before modifying out state. Inner may be inaccessable due to this
         // method being invoked during the sweeping phase, and we don't want to modify our state
@@ -154,6 +157,7 @@ impl<T: Trace + ?Sized> Clone for Gc<T> {
             self.inner().root_inner();
             let gc = Gc {
                 ptr_root: Cell::new(self.ptr_root.get()),
+                marker: PhantomData,
             };
             gc.set_root();
             gc
@@ -291,11 +295,11 @@ const WRITING: usize = !1;
 const UNUSED: usize = 0;
 
 /// The base borrowflag init is rooted, and has no outstanding borrows.
-const BOF_INIT: BorrowFlag = BorrowFlag(ROOT);
+const BOF_INIT: BorrowFlag = BorrowFlag(1);
 
 impl BorrowFlag {
     fn borrowed(self) -> BorrowState {
-        match self.0 {
+        match self.0 & !ROOT {
             WRITING => BorrowState::Writing,
             UNUSED => BorrowState::Unused,
             _ => BorrowState::Reading,
@@ -304,8 +308,8 @@ impl BorrowFlag {
 
     fn rooted(self) -> bool {
         match self.0 & ROOT {
-            ROOT => true,
-            _ => false,
+            0 => false,
+            _ => true,
         }
     }
 
@@ -349,7 +353,7 @@ impl BorrowFlag {
 
 /// A mutable memory location with dynamically checked borrow rules that can be used inside of a gc
 /// pointer.
-pub struct GcCell<T: ?Sized> {
+pub struct GcCell<T: ?Sized + 'static> {
     flags: Cell<BorrowFlag>,
     cell: UnsafeCell<T>,
 }
@@ -625,7 +629,7 @@ impl std::fmt::Display for BorrowMutError {
 }
 
 /// A wrapper type for an immutable borrow of a value in a `GcCell` over T.
-pub struct GcCellRef<'a, T: ?Sized + 'a> {
+pub struct GcCellRef<'a, T: ?Sized + 'static> {
     flags: &'a Cell<BorrowFlag>,
     value: &'a T,
 }
@@ -646,6 +650,7 @@ impl<'a, T: ?Sized> GcCellRef<'a, T> {
         }
     }
 
+    #[inline]
     pub fn map<U, F>(orig: Self, f: F) -> GcCellRef<'a, U>
     where
         U: ?Sized,
