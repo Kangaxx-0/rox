@@ -2,7 +2,8 @@ use std::fmt::Display;
 
 use crate::objects::{ObjClosure, ObjFunction, ObjNative};
 
-use gc::{Finalize, Gc, Trace};
+use gc_derive::{Finalize, Trace};
+use rox_gc::Gc;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Trace, Finalize)]
 pub enum Value {
