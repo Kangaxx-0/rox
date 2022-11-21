@@ -1,6 +1,6 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use rox_gc::Gc;
 
 use crate::chunk::Chunk;
 use crate::compiler::Parser;
@@ -46,7 +46,9 @@ pub struct Vm {
     stack: Stack,
     table: HashTable,
     frames: Vec<CallFrame>,
-    open_values: Vec<Rc<RefCell<ObjUpValue>>>,
+    // Gc managed heap allocation is used for both vm open_values
+    // and ObjClosure upvalues
+    open_values: Vec<Gc<ObjUpValue>>,
 }
 
 impl Vm {
@@ -72,9 +74,10 @@ impl Vm {
             Ok(function) => {
                 // script function is always at the top of the stack
                 let closure = ObjClosure::new(function);
+                let gc_closure = Gc::new(closure);
                 self.pop();
-                self.push(Value::Closure(closure.clone()));
-                self.call(closure, 0);
+                self.push(Value::Closure(gc_closure.clone()));
+                self.call(&gc_closure, 0);
                 self.run()
             }
             Err(_) => Err(InterpretError::CompileError),
@@ -95,7 +98,7 @@ impl Vm {
     }
 
     fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
-        match callee {
+        match &callee {
             // call a function will push the callee to call frame which represents a single ongoing function call
             Value::Closure(closure) => self.call(closure, arg_count),
             Value::NativeFunction(native) => {
@@ -112,7 +115,7 @@ impl Vm {
         }
     }
 
-    fn call(&mut self, closure: ObjClosure, arg_count: usize) -> bool {
+    fn call(&mut self, closure: &ObjClosure, arg_count: usize) -> bool {
         if arg_count != closure.function.arity as usize {
             println!(
                 "Expected {} arguments but got {}.",
@@ -128,32 +131,32 @@ impl Vm {
 
         // calculate the stack start slot for the function
         let stack_top = self.stack.len() - arg_count - 1;
-        let mut frame = CallFrame::new(closure);
+        let mut frame = CallFrame::new(closure.clone());
         frame.ip = 0;
         frame.slots = stack_top;
         self.frames.push(frame);
         true
     }
 
-    fn capture_upvalue(&mut self, index: usize) -> Rc<RefCell<ObjUpValue>> {
-        for vm_upvalue in self.open_values.iter() {
-            if vm_upvalue.borrow().location == index {
-                return Rc::clone(vm_upvalue);
+    fn capture_upvalue(&mut self, index: usize) -> Gc<ObjUpValue> {
+        for vm_upvalue in self.open_values.iter_mut() {
+            if vm_upvalue.location == index {
+                return std::mem::take(vm_upvalue);
             }
         }
-        let upvalue = Rc::new(RefCell::new(ObjUpValue::new(index)));
-        self.open_values.push(Rc::clone(&upvalue));
+        let upvalue = Gc::new(ObjUpValue::new(index));
+        self.open_values.push(upvalue.clone());
         upvalue
     }
 
     fn close_upvalues(&mut self, index: usize) {
         let mut i = 0;
         while i != self.open_values.len() {
-            let upvalue = Rc::clone(&self.open_values[i]);
-            if upvalue.borrow().location >= index {
+            let upvalue = &self.open_values[i];
+            if upvalue.location >= index {
                 let upvalue = self.open_values.remove(i);
-                let local = upvalue.borrow().location;
-                upvalue.borrow_mut().closed = Some(self.stack.values[local].clone());
+                let local = upvalue.location;
+                *upvalue.closed.borrow_mut() = Some(self.stack.values[local].clone());
             } else {
                 i += 1;
             }
@@ -162,7 +165,7 @@ impl Vm {
 
     fn define_native(&mut self, native: ObjNative) {
         self.table
-            .insert(native.name.clone(), Value::NativeFunction(native));
+            .insert(native.name.clone(), Value::NativeFunction(Gc::new(native)));
     }
 
     fn runtime_error(&mut self, message: &str) {
@@ -188,20 +191,19 @@ impl Vm {
         );
         match code {
             //FIXME - Refactor and simplify the code later
-            OpCode::Add => match (v1, v2) {
-                (Value::Number(v1), Value::Number(v2)) => {
-                    let result = v1 + v2;
+            OpCode::Add => {
+                if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
+                    let result = x2 + x1;
                     self.push(Value::Number(result));
                     Ok(())
-                }
-                (Value::String(s1), Value::String(s2)) => {
-                    let mut result = s2;
-                    result.push_str(&s1);
-                    self.push(Value::String(result));
+                } else if let (Value::String(s1), Value::String(s2)) = (&v1, &v2) {
+                    let result = format!("{}{}", s2, s1);
+                    self.push(Value::String(Gc::new(result)));
                     Ok(())
+                } else {
+                    Err(InterpretError::RuntimeError)
                 }
-                _ => Err(InterpretError::RuntimeError),
-            },
+            }
             OpCode::Subtract => {
                 if let (Value::Number(x1), Value::Number(x2)) = (&v1, &v2) {
                     let result = x2 - x1;
@@ -370,7 +372,7 @@ impl Vm {
                 }
                 OpCode::Print => {
                     let val = self.pop().expect("unable to pop value");
-                    match val {
+                    match &val {
                         Value::Function(v) => println!("{}", v.name.value),
                         Value::String(v) => println!("Printing value of {}", v),
                         Value::Number(v) => println!("Printing value of {}", v),
@@ -435,12 +437,12 @@ impl Vm {
                     self.push(val.clone());
                 }
                 OpCode::GetUpvalue(index) => {
-                    let val = Rc::clone(&self.current_frame().closure.obj_upvalues[index]);
+                    let val = &self.current_frame().closure.obj_upvalues[index];
                     let res = {
-                        if let Some(val) = &val.borrow().closed {
+                        if let Some(val) = val.closed.borrow().as_ref() {
                             val.clone()
                         } else {
-                            let val = &self.stack.values[val.borrow().location];
+                            let val = &self.stack.values[val.location];
                             val.clone()
                         }
                     };
@@ -454,12 +456,12 @@ impl Vm {
                 }
                 OpCode::SetUpvalue(index) => {
                     let closure = &self.current_frame().closure.clone();
-                    let mut obj_upvalue = closure.obj_upvalues[index].borrow_mut();
+                    let obj_upvalue = &closure.obj_upvalues[index];
                     let val = self.peek(0).expect("unable to pop value");
-                    if obj_upvalue.closed.is_none() {
+                    if obj_upvalue.closed.borrow().is_none() {
                         self.stack.values[obj_upvalue.location] = val.clone();
                     } else {
-                        obj_upvalue.closed = Some(val.clone());
+                        *obj_upvalue.closed.borrow_mut() = Some(val.clone());
                     }
                 }
                 OpCode::JumpIfFalse(offset) => {
@@ -485,9 +487,10 @@ impl Vm {
                     }
                 }
                 OpCode::Closure(v) => {
-                    let val = self.current_chunk().constants[v].clone();
+                    let val = &self.current_chunk().constants[v];
                     if let Value::Function(f) = val {
-                        let mut closure = ObjClosure::new(f);
+                        let closure = &**f;
+                        let mut closure = ObjClosure::new(closure.clone());
                         for upvalue in &closure.function.upvalues {
                             let obj_upvalue = if upvalue.is_local {
                                 let index = self.current_frame().slots + upvalue.index + 1;
@@ -497,7 +500,7 @@ impl Vm {
                             };
                             closure.obj_upvalues.push(obj_upvalue)
                         }
-                        self.push(Value::Closure(closure.clone()));
+                        self.push(Value::Closure(Gc::new(closure)));
                     }
                 }
                 _ => {
@@ -613,8 +616,11 @@ mod tests {
     fn test_string() {
         let mut vm = Vm::new();
         vm.initialize();
-        vm.stack.push(Value::String("hello".to_string()));
-        assert_eq!(vm.stack.pop(), Some(Value::String("hello".to_string())));
+        vm.stack.push(Value::String(Gc::new("hello".to_string())));
+        assert_eq!(
+            vm.stack.pop(),
+            Some(Value::String(Gc::new("hello".to_string())))
+        );
     }
 
     #[test]

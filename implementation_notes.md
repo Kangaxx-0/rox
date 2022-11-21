@@ -33,12 +33,14 @@ Java虚拟机用`constant_pool`表来存储程序中的类/接口/类实例/数�
 
 ```
 cp_info {
+
     u1 tag;
     u1 info[];
 }
 ```
 
 | Constant Kind   | Tag  |
+
 ------------------|------|
 |CONSTANT_Utf8    |   1  |
 |CONSTANT_Integer |   3  |
@@ -93,6 +95,7 @@ TBD
 
 对于解析这部分，理解Vaughan Pratt的“自顶向下算符优先解析”算法有着非常重要的作用
 > For the parsing part, it is important to understand how Vaughan Pratt’s “top-down operator precedence parsing” algorithms works
+
 ```
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 // Precedence symbols:
@@ -164,6 +167,7 @@ typedef enum {
   OBJ_STRING,
 } ObjType;
 ```
+
 
 # 7.哈希表
 > # 7.Hash Tables
@@ -255,5 +259,30 @@ fun outer() {
 outer();            // -----> Used here
 
 ```
+# 13. 垃圾收回
+> # 13. Garbage Collection
 
+术语:
+> Terms:
 
+- 根: 根是虚拟机可以无需通过其它对象的引用而直接到达的任何对象。大多数根是全局变量或在栈上
+> - Roots: A root is any object that the VM can reach directly without going through a reference in some other object. Most roots are global variables or on the stack.
+
+- 可达性:
+    - 所有根都是可达的。
+    - 任何被某个可达对象引用的对象本身是可达的。
+> - Reachability:
+>   - All roots are reachable.
+>   - Any object referred to from a reachable object is itself reachable.
+
+实现部分是从[rust-gc](https://github.com/Manishearth/rust-gc)拷贝而来，具体实现可以参考代码，这里主要有2点要点:
+- `Gc`的拷贝并不是深拷贝
+- 默认`Gc`是不可改变的，类似`Rc`
+> The implemention is highly borrowed from [rust-gc](https://github.com/Manishearth/rust-gc), please refer to the code for more information, there are two main takeaways:
+>  - `Clone` on `Gc` is not a deep copy.
+>  - `Gc` is immutable by default, like `Rc`
+
+`GcBox` and `GcBoxHeader` diagram
+<aside name="gc">
+<img src="https://github.com/Kangaxx-0/rox/blob/gaxx/rust-gc/assets/rox_gc_memory.png" alt="gc" />
+</aside>

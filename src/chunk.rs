@@ -1,8 +1,10 @@
 use crate::op_code::OpCode;
 use crate::value::Value;
 
-#[derive(PartialEq, Eq, PartialOrd, Debug, Clone)]
+use gc_derive::{Finalize, Trace};
+#[derive(PartialEq, PartialOrd, Debug, Clone, Trace, Finalize)]
 pub struct Chunk {
+    #[unsafe_ignore_trace]
     pub code: Vec<OpCode>,
     pub constants: Vec<Value>,
     pub lines: Vec<usize>,
